@@ -2,21 +2,22 @@
 [Grant Erickson](https://github.com/GrantErickson), [Meg Gravatt](https://github.com/mmwoodfo), and [Benjamin Michaelis](https://github.com/BenjaminMichaelis)
 
 For general questions, we suggest asking in Teams so that others can help as well. We encourage people to work together and collaborate. Please feel free to help your fellow students out. Though it is possible to privately message people directly, as much as possible, we encourage open discussion on the main chat so that others can benefit as well.
-You can also send an e-mail to: [EWU-Instructors@IntelliTect.com](EWU-Instructors@IntelliTect.com) for final grade or general questions.
+You can also send an email to: [EWU-Instructors@IntelliTect.com](EWU-Instructors@IntelliTect.com) for final grade or general questions.
 
 ## GitHub Information
 We will be using GitHub for all class lectures and assignments. All work will be submitted via GitHub pull requests.
-* Please sign up for a GitHub if you do not already have one. 
-* You can get added benefits by signing up for a free [GitHub Student Developer Pack](https://education.github.com/pack).  
+* Please sign up for GitHub if you do not already have one. 
+* You can get added benefits by signing up for a free [GitHub Student Developer Pack](https://education.github.com/pack).
+* Sign up for GitHub Copilot Pro if you have not. [More Info](https://github.com/education/students)
 * **IMPORTANT** : Please fill out this **[form](https://docs.google.com/forms/d/e/1FAIpQLSdlpBMhof2gxL64vrqLg9o0Uc4di5lYejpo10XUBiMoyb-Xxg/viewform?usp=sf_link)** with your GitHub information. This is used by us so we can appropriately grade assignments.
 
 ## Prerequisites
-This class will build on CSCD-371. It will be very difficult if you have not taken the CSCD-371 that was offered in Winter. We will be building on much of what was presented in that class. Here are the things the instructors will assume you already know in addition to all standard classes taken by juniors and seniors in the CS program as of Winter.
+This class will build on CSCD-371. It won't be easy if you have not taken CSCD-371. We will be building on much of what was presented in that class. Here are the things the instructors will assume you already know in addition to all standard classes taken by juniors and seniors in the CS program as of Winter.
 * Good grasp of the C# programming language
 * Good familiarity with web development (as taught in the CSCD-371 Winter) HTML, CSS, JS
 * Familiarity with development environments like Visual Studio and VS Code
-* Understanding of how Git source control works with the ability to perform standard development workflows
-* Understanding of GitHub especially doing pull requests
+* Understanding of how Git source control works, with the ability to perform standard development workflows
+* Understanding of GitHub, especially doing pull requests
 * Good grasp of programming theory: OOP, data structures, etc.
 
 ## Tech Stack References
@@ -56,14 +57,19 @@ This class will build on CSCD-371. It will be very difficult if you have not tak
 * Start homework early and come to class with questions. Starting homework late is a recipe for disaster and pain.
 * All assignments, due dates, and grading information are in [**Assignments**](Assignments.md)
 * Homework will be done in pairs. If you are experiencing issues, please contact an instructor.
-* Code reviews are done individually, each student should review code that is not done by them or their partner.
-* The day homework is initially due we will typically go over the assignment in class. (no guarantees)
+* Code reviews are done individually; each student should review code that was not done by them or their partner.
+* The day homework is initially due, we will typically go over the assignment in class. (no guarantees)
+
+### Grading
+* See [**Assignments**](Assignments.md) for points possible and grading.
+* See the [**Final**](Final.md) for detail about the final.
+* We will likely hold pop quizzes at random times during class, worth up to 1/3 of the points in the class. The pop quizzes will be offered only once and are available only to in-person attendees. 
 
 ## Computer Setup ##
 - [Visual Studio Code](https://code.visualstudio.com/) This can largely be used as an alternative to Visual Studio. Many of us also use it as our catch-all lightweight text/code editor.
 - [Azure for Students](https://azure.microsoft.com/en-us/free/students/) You will need to sign up for the free Azure student credits. This provides a place for us to deploy our application.
-The coursework will be cross-platform. However, in class the instructors will be working on Windows in both VSCode (for front end) and Visual Studio (for back end).
-- [nodejs & npm (LTS)](https://nodejs.org/en/download/) Node Package Manager will provide tooling for bulding our front end web site.
+The coursework will be cross-platform. However, in class, the instructors will be working on Windows in both VSCode (for front-end) and Visual Studio (for back-end).
+- [nodejs & npm (LTS)](https://nodejs.org/en/download/) Node Package Manager will provide tooling for building our front-end website.
 
 ### Recommended ###
 - [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/). Version 17.9 or later. The community edition is fine, though we believe most students should have access to higher SKUs with EWU's MSDN (this assumption may be wrong). Lab computers should have Visual Studio Professional already installed. This should install .NET 8.0.
