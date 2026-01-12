@@ -4,6 +4,13 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   modules: ['vuetify-nuxt-module'],
 
+  vuetify: {
+    vuetifyOptions: {
+      theme: {
+        defaultTheme: 'light',
+      },
+    },
+  },
   app: {
     pageTransition: { name: 'page', mode: 'out-in' },
   },

@@ -7,7 +7,8 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "test": "vitest run"
   },
   "dependencies": {
     "nuxt": "^4.2.2",
@@ -16,6 +17,9 @@
     "vuetify-nuxt-module": "^0.19.2"
   },
   "devDependencies": {
-    "sass-embedded": "^1.97.2"
+    "@vue/test-utils": "^2.4.6",
+    "jsdom": "^27.4.0",
+    "sass-embedded": "^1.97.2",
+    "vitest": "^4.0.16"
   }
 }

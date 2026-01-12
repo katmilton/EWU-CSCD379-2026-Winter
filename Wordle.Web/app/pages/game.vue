@@ -1,22 +1,47 @@
 <template>
+  <v-container class="text-center">
+    <v-card class="pa-6" max-width="400">
+      <v-card-title>GUESS GAME</v-card-title>
 
+      <v-card-text>
+        <div> Hint: The course you are taking </div>
+        <v-text-field
+          v-model="guess"
+          label="Enter your guess"
+          maxlength="10"
+        />
 
-<v-card title="Vue-dle" text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, 
-sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, 
-quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute 
-irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
- Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit
-  anim id est laborum" variant="tonal">
-  <v-card-actions>
-    <v-btn to ="/">Home</v-btn>
-  </v-card-actions>
-</v-card>
+        <div class="mt-2">
+          {{ message }}
+        </div>
+      </v-card-text>
 
+      <v-card-actions class="justify-space-between">
+        <v-btn color="primary" @click="checkGuess">
+          Guess
+        </v-btn>
 
+        <v-btn to="/" variant="text">
+          Home
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-container>
 </template>
 
-<script type="ts">
+<script setup lang="ts">
 
+import { ref } from 'vue'
 
+const secret = 'CSCD379'
+const guess = ref('')
+const message = ref('')
 
+function checkGuess() {
+  if (guess.value.toUpperCase() === secret) {
+    message.value = 'Correct!'
+  } else {
+    message.value = 'Try again'
+  }
+}
 </script>
