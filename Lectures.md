@@ -29,7 +29,13 @@
 
 ### Lecture 2: 1/8: Deployment (Assignment 1) 🟢
 
+- AI Discussion
 - Complete application
+
+## Week 2
+
+## TO DO
+
 - Classes in C#/Java and TS/JS
 - Basic unit testing with Jest
   - Add testing: `npm i --save-dev @nuxt/test-utils vitest @vue/test-utils happy-dom playwright-core`
@@ -42,7 +48,7 @@
   - `https://nuxt.com/modules/vuetify`
   - `https://www.codybontecou.com/how-to-use-vuetify-with-nuxt-3.html`
 
-## Week 2
+
 
 ### Lecture 3: 1/13: Vue (Assignment 2) 🟢🟣
 
