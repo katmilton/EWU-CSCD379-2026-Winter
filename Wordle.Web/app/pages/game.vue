@@ -1,7 +1,7 @@
 <template>
   <v-container class="text-center">
     <v-card class="pa-6" max-width="400">
-      <v-card-title>GUESS GAME</v-card-title>
+      <v-card-title>Quick Guess</v-card-title>
 
       <v-card-text>
         <div> Hint: The course you are taking </div>
