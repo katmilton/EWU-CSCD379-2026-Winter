@@ -16,7 +16,6 @@ jobs:
     name: Build and Deploy Job
     
     steps:
-      steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -36,7 +35,7 @@ jobs:
       - name: Build Vue/Nuxt app
         run: npm run build
         working-directory: Wordle.Web
-        
+
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
