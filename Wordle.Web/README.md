@@ -74,6 +74,9 @@ bun run preview
 
 Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
 
+# URL
+https://thankful-sea-02c445710.1.azurestaticapps.net
+
 # Extra Credit 
 ## 1
 The player takes on the role of a hacker attempting to break into a secured system before a countdown expires. The game includes three difficulty levels: Easy (3 words, 12 minutes), Medium (4 words, 15 minutes), and Hard (5 words, 20 minutes). Each correct word guess unlocks system logs, emails, or security messages that reveal clues about a hidden cache of treasure locked behind the system. Poor guesses waste valuable time, while successful guesses bring the player closer to claiming the prize. The ending changes based on how much information the player recovers before time runs out.
