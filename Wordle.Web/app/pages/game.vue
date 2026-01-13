@@ -30,18 +30,14 @@
 </template>
 
 <script setup lang="ts">
-
 import { ref } from 'vue'
+import { checkGuess } from '~/scripts/quickguess'
 
-const secret = 'CSCD379'
 const guess = ref('')
 const message = ref('')
 
-function checkGuess() {
-  if (guess.value.toUpperCase() === secret) {
-    message.value = 'Correct!'
-  } else {
-    message.value = 'Try again'
-  }
+function onGuess() {
+  message.value = checkGuess(guess.value)
 }
 </script>
+
