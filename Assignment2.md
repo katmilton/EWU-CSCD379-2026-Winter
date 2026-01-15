@@ -30,6 +30,7 @@ The purpose of this assignment is to solidify your learning of:
 - Extra Credit: for cool features you implement
 
 Resources:
+- Azure: https://azure.microsoft.com/en-us/free/students (You should be able to get a subscription for some resources for free (everything we use here should be free, but be careful). Reach out to Josh or Grant if you have trouble.)
 - https://antigravity.google/
 - https://docs.github.com/en/education/about-github-education/github-education-for-students/apply-to-github-education-as-a-student (I think you get Copilot for free as a student)
 
