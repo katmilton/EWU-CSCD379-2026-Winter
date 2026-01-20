@@ -454,6 +454,12 @@ export function useWordleGame() {
     return
     }
 
+    if (hasAlreadyGuessed(guess)) {
+      statusMessage.value = 'Already guessed.'
+      shakeRow(guessIndex.value)
+      return
+    }
+
 
     if (!isValidGuess(guess)) {
       statusMessage.value = 'Not in word list.'
@@ -574,6 +580,16 @@ export function useWordleGame() {
     if (max <= 0) return '0%'
     return `${Math.round((val / max) * 100)}%`
   }
+
+  function hasAlreadyGuessed(word: string) {
+  const w = word.toUpperCase()
+  for (let r = 0; r < guessIndex.value; r++) {
+    const prev = board.value[r].join('').toUpperCase()
+    if (prev === w) return true
+  }
+  return false
+}
+
 
   return {
     WORD_LEN,
