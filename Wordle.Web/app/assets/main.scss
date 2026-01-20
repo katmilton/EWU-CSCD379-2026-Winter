@@ -126,6 +126,32 @@
   transition: transform 120ms ease, background-color 180ms ease, border-color 180ms ease;
 }
 
+.wordle-board .cell,
+.wordle-keyboard .kb-key {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent "Enter" from wrapping on small screens */
+.wordle-keyboard .kb-key {
+  white-space: nowrap;
+  line-height: 1;
+}
+
+/* Let the Enter/Backspace keys shrink a bit when space is tight */
+.wordle-keyboard .kb-key-wide {
+  min-width: 0;      /* allow shrinking */
+  width: 100%;       /* still takes its grid share */
+}
+
+/* slightly smaller label on very small screens */
+@media (max-width: 380px) {
+  .wordle-keyboard .kb-fn {
+    font-size: 0.78rem;
+    padding: 0 6px;
+  }
+}
+
+
 .wordle-board .cell.filled {
   border-color: rgba(0, 0, 0, 0.35);
 }
@@ -315,3 +341,44 @@
     min-width: 58px;
   }
 }
+
+/* Keep the Wordle card from causing vertical scroll on short screens */
+@media (max-height: 750px) {
+  .wordle-page {
+    padding-top: 10px;
+    padding-bottom: 14px;
+  }
+
+  .wordle-board .cell {
+    height: 44px;
+    font-size: 1.12rem;
+  }
+
+  .wordle-keyboard .kb-key {
+    height: 38px;
+    font-size: 0.82rem;
+  }
+
+  .wordle-keyboard .kb-key-wide {
+    min-width: 54px;
+  }
+}
+
+@media (max-width: 360px) {
+  .wordle-keyboard .kb-row {
+    gap: 4px;
+  }
+  .wordle-board .row {
+    gap: 6px;
+  }
+  .wordle-board .board {
+    gap: 6px;
+  }
+  .wordle-board .cell {
+    height: 44px;
+    font-size: 1.05rem;
+  }
+}
+
+
+
