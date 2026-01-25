@@ -1,8 +1,8 @@
 // composables/useWordleGame.ts
 import { computed, reactive, ref, watch } from 'vue'
 
-import solutionsRaw from '~/assets/words.json'
-import validRaw from '~/assets/validWords.json'
+import solutionsRaw from '../assets/words.json'
+import validRaw from '../assets/validWords.json'
 
 export type TileStatus = '' | 'absent' | 'present' | 'correct'
 export type Mode = 'daily' | 'random'
@@ -80,7 +80,7 @@ function getTodayKeyLocal() {
 
 function getDaysSinceEpochLocal(dateKey: string): number {
   const [y, m, d] = dateKey.split('-').map(Number)
-  const dt = new Date(y, m - 1, d)
+  const dt = new Date(y!, m! - 1, d)
   const epoch = new Date(1970, 0, 1)
   const msPerDay = 24 * 60 * 60 * 1000
   return Math.floor((dt.getTime() - epoch.getTime()) / msPerDay)
@@ -138,28 +138,36 @@ function saveDailyState(st: DailyState | null) {
 // 2) mark present if remaining count > 0 else absent
 function scoreGuess(guess: string, target: string): TileStatus[] {
   const res: TileStatus[] = Array(WORD_LEN).fill('absent')
-  const t = target.split('')
-  const g = guess.split('')
+  const t = target.split('') as string[]
+  const g = guess.split('') as string[]
   const counts: Record<string, number> = {}
 
   for (let i = 0; i < WORD_LEN; i++) {
-    if (g[i] === t[i]) {
+    const gch = g[i]!
+    const tch = t[i]!
+
+    if (gch === tch) {
       res[i] = 'correct'
     } else {
-      counts[t[i]] = (counts[t[i]] || 0) + 1
+      counts[tch] = (counts[tch] || 0) + 1
     }
   }
 
+
   for (let i = 0; i < WORD_LEN; i++) {
     if (res[i] === 'correct') continue
-    const ch = g[i]
-    if ((counts[ch] || 0) > 0) {
+
+    const ch = g[i]!
+    const remaining = counts[ch] || 0
+
+    if (remaining > 0) {
       res[i] = 'present'
-      counts[ch]--
+      counts[ch] = remaining - 1
     } else {
       res[i] = 'absent'
     }
   }
+
 
   return res
 }
@@ -268,19 +276,35 @@ export function useWordleGame() {
     clearKeyStatus()
   }
 
-  function applyKeyStatusFromRow(guess: string, rowStatuses: TileStatus[]) {
-    // priority: correct > present > absent
-    const priority: Record<TileStatus, number> = { '': 0, absent: 1, present: 2, correct: 3 }
-    for (let i = 0; i < WORD_LEN; i++) {
-      const ch = guess[i]
-      const st = rowStatuses[i]
-      const prev = keyStatus[ch] || ''
-      if (priority[st] > priority[prev]) keyStatus[ch] = st
+  function applyKeyStatusFromRow(
+  guess: string,
+  rowStatuses: readonly TileStatus[]
+) {
+  // priority: correct > present > absent
+  const priority = {
+    '': 0,
+    absent: 1,
+    present: 2,
+    correct: 3
+  } satisfies Record<TileStatus, number>
+
+  for (let i = 0; i < WORD_LEN; i++) {
+    const ch = guess[i]
+    if (!ch) continue
+    const st = rowStatuses[i] ?? ''
+    const prev = keyStatus[ch] || ''
+
+    if (priority[st] > priority[prev]) {
+      keyStatus[ch] = st
     }
   }
+}
+
 
   function currentGuessString() {
-    return board.value[guessIndex.value].join('')
+    const row = board.value[guessIndex.value]
+    if (!row) return ''
+    return row.join('')
   }
 
   function shakeRow(row: number) {
@@ -317,6 +341,27 @@ export function useWordleGame() {
 
   function startDaily() {
     mode.value = 'daily'
+
+    // determine today's solution index early
+    const idx = pickDailySolutionIndex(todayKey.value)
+
+    // if no solutions are loaded, bail out early
+    if (SOLUTIONS.length === 0) {
+      gameOver.value = true
+      statusMessage.value = 'No solutions loaded. Check assets/words.json'
+      return
+    }
+    // enforce “once per day” before resetting state — if stats show today's already played,
+    // show the result and avoid resetting/restoring ephemeral daily state.
+    if (dailyPlayedToday.value) {
+      targetWord.value = SOLUTIONS[idx] || ''
+      gameOver.value = true
+      won.value = stats.lastDailyOutcome === 'win'
+      statusMessage.value = won.value ? `You already solved today's word!` : `You already played today's word.`
+      if (won.value) void fetchDefinition(targetWord.value)
+      return
+    }
+
     resetBoardState()
 
     if (SOLUTIONS.length === 0) {
@@ -325,17 +370,16 @@ export function useWordleGame() {
       return
     }
 
-    const idx = pickDailySolutionIndex(todayKey.value)
-    targetWord.value = SOLUTIONS[idx]
+    targetWord.value = SOLUTIONS[idx] || ''
 
     // Restore in-progress daily if exists
     const st = loadDailyState()
     if (st && st.date === todayKey.value && st.solutionIndex === idx) {
       for (let r = 0; r < st.guesses.length && r < MAX_GUESSES; r++) {
-        const g = st.guesses[r].toUpperCase()
-        for (let c = 0; c < WORD_LEN; c++) board.value[r][c] = g[c] || ''
+        const g = st.guesses[r]!.toUpperCase()
+        for (let c = 0; c < WORD_LEN; c++) board.value[r]![c] = g[c] || ''
         statuses.value[r] = (st.results[r] || Array(WORD_LEN).fill('')) as TileStatus[]
-        applyKeyStatusFromRow(g, statuses.value[r])
+        applyKeyStatusFromRow(g, statuses.value[r]!)
       }
 
       guessIndex.value = Math.min(st.guesses.length, MAX_GUESSES)
@@ -381,7 +425,7 @@ export function useWordleGame() {
       return
     }
 
-    targetWord.value = SOLUTIONS[Math.floor(Math.random() * SOLUTIONS.length)]
+    targetWord.value = SOLUTIONS[Math.floor(Math.random() * SOLUTIONS.length)] ?? ''
     statusMessage.value = 'Random game started.'
   }
 
@@ -391,7 +435,7 @@ export function useWordleGame() {
     if (guessIndex.value >= MAX_GUESSES) return
     if (letterIndex.value >= WORD_LEN) return
     hintText.value = ''
-    board.value[guessIndex.value][letterIndex.value] = letter.toUpperCase()
+    board.value[guessIndex.value]![letterIndex.value] = letter.toUpperCase()
     letterIndex.value++
   }
 
@@ -402,7 +446,7 @@ export function useWordleGame() {
     if (letterIndex.value <= 0) return
     hintText.value = ''
     letterIndex.value--
-    board.value[guessIndex.value][letterIndex.value] = ''
+    board.value[guessIndex.value]![letterIndex.value] = ''
   }
 
   async function onFinishGame(didWin: boolean, guessesUsed: number) {
@@ -444,7 +488,7 @@ export function useWordleGame() {
       return
     }
 
-    const guessRow = board.value[guessIndex.value]
+    const guessRow = board.value[guessIndex.value]!
     const guess = guessRow.join('').toUpperCase()
 
     // if any tile is empty OR the joined string isn't 5 chars, reject
@@ -523,9 +567,9 @@ export function useWordleGame() {
     const history: { guess: string; result: TileStatus[] }[] = []
     for (let r = 0; r < guessIndex.value; r++) {
       const row = board.value[r]
-        const g = row.join('')
-        if (g.length === WORD_LEN && !row.some(ch => !ch)) {
-        history.push({ guess: g, result: statuses.value[r] })
+        const g = row!.join('')
+        if (g.length === WORD_LEN && !row!.some(ch => !ch)) {
+        history.push({ guess: g, result: statuses.value[r]! })
 }
 
     }
@@ -553,9 +597,9 @@ export function useWordleGame() {
 
   // UI helpers for components
   function cellClass(r: number, c: number) {
-    const st = statuses.value[r][c]
+    const st = statuses.value[r]![c]
     const isActiveRow = r === guessIndex.value && !gameOver.value
-    const hasLetter = !!board.value[r][c]
+    const hasLetter = !!board.value[r]![c]
     return {
       filled: hasLetter,
       active: isActiveRow,
@@ -584,7 +628,7 @@ export function useWordleGame() {
   function hasAlreadyGuessed(word: string) {
   const w = word.toUpperCase()
   for (let r = 0; r < guessIndex.value; r++) {
-    const prev = board.value[r].join('').toUpperCase()
+    const prev = board.value[r]!.join('').toUpperCase()
     if (prev === w) return true
   }
   return false

@@ -81,10 +81,11 @@
 </template>
 
 <script setup lang="ts">
-import WordleBoard from '~/components/wordle/WordleBoard.vue'
-import WordleKeyboard from '~/components/wordle/WordleKeyboard.vue'
-import WordleStatsDialog from '~/components/wordle/WordleStatsDialog.vue'
-import { useWordleGame } from '~/composables/useWordleGame'
+import WordleBoard from '../components/wordle/WordleBoard.vue'
+import WordleKeyboard from '../components/wordle/WordleKeyboard.vue'
+import WordleStatsDialog from '../components/wordle/WordleStatsDialog.vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { useWordleGame } from '../composables/useWordleGame'
 
 const {
   WORD_LEN,

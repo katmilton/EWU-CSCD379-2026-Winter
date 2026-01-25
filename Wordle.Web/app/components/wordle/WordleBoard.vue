@@ -13,7 +13,7 @@
           class="cell"
           :class="cellClass(r - 1, c - 1)"
         >
-          {{ board[r - 1][c - 1] }}
+          {{ board[r - 1]?.[c - 1] || '' }}
         </div>
       </div>
     </div>

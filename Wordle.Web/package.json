@@ -1,5 +1,5 @@
 {
-  "name": "Wordle-Web",
+  "name": "wordle-web",
   "type": "module",
   "private": true,
   "scripts": {
@@ -21,6 +21,7 @@
     "@vue/test-utils": "^2.4.6",
     "jsdom": "^27.4.0",
     "sass-embedded": "^1.97.2",
+    "typescript": "^5.9.3",
     "vitest": "^4.0.16"
   }
 }
