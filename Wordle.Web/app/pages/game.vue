@@ -1,5 +1,6 @@
 <template>
   <v-container class="wordle-page">
+    <WinCelebration v-if="showCelebration" @closed="showCelebration = false" :duration="3000" />
     <v-card class="mx-auto wordle-card" elevation="6">
       <v-card-title class="d-flex align-center justify-space-between">
         <div class="wordle-title-wrap">
@@ -84,8 +85,9 @@
 import WordleBoard from '../components/wordle/WordleBoard.vue'
 import WordleKeyboard from '../components/wordle/WordleKeyboard.vue'
 import WordleStatsDialog from '../components/wordle/WordleStatsDialog.vue'
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useWordleGame } from '../composables/useWordleGame'
+import WinCelebration from '../components/wordle/WinCelebration.vue'
 
 const {
   WORD_LEN,
@@ -123,6 +125,11 @@ const {
 } = useWordleGame()
 
 const openStats = ref(false)
+const showCelebration = ref(false)
+
+watch(won, (v) => {
+  if (v) showCelebration.value = true
+})
 
 function onKey(k: string) {
   if (k === 'ENTER') return submitGuess()

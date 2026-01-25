@@ -26,7 +26,9 @@
 
 <style scoped>
 .home-bg {
+  min-height: 100vh;
   background: linear-gradient(135deg, #fde2e4, #e0c3fc, #c2f0fc);
+  display: flex;
 }
 
 .home-card {

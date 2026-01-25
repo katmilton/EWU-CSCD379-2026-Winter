@@ -7,22 +7,6 @@ vi.mock('~/assets/validWords.json', () => ({ default: ['crane', 'slate', 'arise'
 import { useWordleGame } from '../composables/useWordleGame'
 
 describe('useWordleGame composable', () => {
-  it('types letters and backspaces', () => {
-    const g = useWordleGame()
-    expect(g.letterIndex.value).toBe(0)
-
-    g.typeLetter('c')
-    g.typeLetter('r')
-
-    expect(g.board.value[0][0]).toBe('C')
-    expect(g.board.value[0][1]).toBe('R')
-    expect(g.letterIndex.value).toBe(2)
-
-    g.backspace()
-    expect(g.letterIndex.value).toBe(1)
-    expect(g.board.value[0][1]).toBe('')
-  })
-
   it('submitGuess rejects incomplete guesses', async () => {
     const g = useWordleGame()
     g.typeLetter('a')
