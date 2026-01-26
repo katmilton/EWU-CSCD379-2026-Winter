@@ -127,11 +127,45 @@ const {
 const openStats = ref(false)
 const showCelebration = ref(false)
 
+// Lazy WebAudio for key clicks (created on first user interaction)
+let audioCtx: AudioContext | null = null
+function ensureAudio() {
+  if (audioCtx) return audioCtx
+  try {
+    const A = window.AudioContext || (window as any).webkitAudioContext
+    audioCtx = new (A)()
+  } catch {
+    audioCtx = null
+  }
+  return audioCtx
+}
+
+function playKeySound() {
+  const ctx = ensureAudio()
+  if (!ctx) return
+  if (ctx.state === 'suspended') void ctx.resume()
+  const o = ctx.createOscillator()
+  const g = ctx.createGain()
+  o.type = 'square'
+  o.frequency.value = 700
+  g.gain.value = 0.0001
+  o.connect(g)
+  g.connect(ctx.destination)
+  const now = ctx.currentTime
+  g.gain.setValueAtTime(0.0001, now)
+  g.gain.exponentialRampToValueAtTime(0.2, now + 0.005)
+  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.09)
+  o.start(now)
+  o.stop(now + 0.1)
+}
+
 watch(won, (v) => {
   if (v) showCelebration.value = true
 })
 
 function onKey(k: string) {
+  // play click immediately (non-blocking)
+  try { playKeySound() } catch {}
   if (k === 'ENTER') return submitGuess()
   if (k === 'BACKSPACE') return backspace()
   if (/^[A-Z]$/.test(k)) return typeLetter(k)

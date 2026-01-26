@@ -158,5 +158,5 @@ function playClap() {
 .win-overlay.hiding { opacity: 0; }
 .confetti-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .win-content { pointer-events: auto; position: relative; z-index: 2; text-align: center; }
-.win-title { font-size: 5rem; color: red; text-shadow: grey 0 6px 18px; margin: 0; }
+.win-title { font-size: 5rem; color: red; text-shadow: grey; margin: 0; }
 </style>
