@@ -195,8 +195,15 @@ function onKeydown(e: KeyboardEvent) {
 
 onMounted(() => {
   window.addEventListener('keydown', onKeydown)
-  startDaily()
+
+  // If today's daily was already completed on this browser, default to Random.
+  if (dailyPlayedToday.value) {
+    startRandom()
+  } else {
+    startDaily()
+  }
 })
+
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
