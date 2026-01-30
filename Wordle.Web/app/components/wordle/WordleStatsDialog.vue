@@ -26,10 +26,11 @@
                 :value="winPercentComputed"
                 height="18"
                 rounded
+                
                 color="success"
               >
                 <template #default>
-                  <div class="percent-text">{{ winPercentComputed }}%</div>
+                  <div class="percent-text">{{ winPercentComputed }}% </div>
                 </template>
               </v-progress-linear>
             </div>
@@ -44,16 +45,17 @@
                   <div class="dist-n">{{ i }}</div>
 
                   <div class="dist-bar">
+                    <div class="dist-fill" :style="{ width: distWidthComputed(i) }" :class="{ 'dist-fill--success': distColor(i) === 'success', 'dist-fill--primary': distColor(i) !== 'success' }"></div>
                     <v-progress-linear
-                      :value="distPercent(i)"
+                      :value="0"
                       height="20"
                       rounded
-                      :color="distColor(i)"
+                      style="visibility: hidden; position: absolute; left: 0; right: 0;"
                     />
                   </div>
 
                   <div class="dist-count">
-                    {{ stats.guessDist?.[i - 1] || 0 }}
+                    {{ getGuessCount(i) }}
                   </div>
                 </div>
               </v-col>
@@ -108,24 +110,38 @@ const effectiveMaxGuesses = computed(() => {
 })
 
 const maxDistCount = computed(() => {
-  const arr = stats.guessDist || []
-  return arr.length ? Math.max(...arr) : 1
+  const gd = stats.guessDist || []
+  if (Array.isArray(gd)) return gd.length ? Math.max(...gd.map(v => Number(v) || 0)) : 1
+  const vals = Object.values(gd).map(v => Number(v) || 0)
+  return vals.length ? Math.max(...vals) : 1
 })
+
+function getGuessCount(i: number) {
+  const gd = stats.guessDist || []
+  if (Array.isArray(gd)) return Number(gd[i - 1]) || 0
+  // support object keyed by 1-based indexes (strings or numbers)
+  if (gd && typeof gd === 'object') return Number(gd[i] ?? gd[String(i)] ?? gd[i - 1] ?? 0) || 0
+  return 0
+}
 
 function distPercent(i: number) {
   if (props.distWidth) {
     const w = props.distWidth(i)
-    return Number(w.replace('%', '')) || 0
+    return Number(String(w).replace('%', '')) || 0
   }
-
-  const count = stats.guessDist?.[i - 1] || 0
+  const count = getGuessCount(i)
   const max = maxDistCount.value || 1
   return Math.round((count / max) * 100)
 }
 
+function distWidthComputed(i: number) {
+  if (props.distWidth) return props.distWidth(i)
+  return `${distPercent(i)}%`
+}
+
 // Highlight the most common guess in green
 function distColor(i: number) {
-  const count = stats.guessDist?.[i - 1] || 0
+  const count = getGuessCount(i)
   if (count === maxDistCount.value && count > 0) return 'success'
   return 'primary'
 }
@@ -209,6 +225,21 @@ const statItems = computed(() => [
 
 .dist-bar {
   flex: 1;
+}
+
+.dist-fill {
+  height: 20px;
+  border-radius: 4px;
+  background-color: var(--v-primary-base, #1976d2);
+  transition: width 0.18s ease;
+}
+
+.dist-fill--success {
+  background-color: var(--v-success-base, #2e7d32);
+}
+
+.dist-fill--primary {
+  background-color: var(--v-primary-base, #1976d2);
 }
 
 .dist-count {

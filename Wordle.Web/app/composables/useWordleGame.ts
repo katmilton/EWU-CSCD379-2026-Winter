@@ -11,7 +11,7 @@ type Stats = {
   played: number
   wins: number
   losses: number
-  guessDist: Record<number, number> // 1..6
+  guessDist: number[]
   totalWinGuesses: number
   lastDailyDate: string | null
   lastDailyOutcome: 'win' | 'loss' | null
@@ -56,7 +56,7 @@ function defaultStats(): Stats {
     played: 0,
     wins: 0,
     losses: 0,
-    guessDist: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 },
+    guessDist: Array(MAX_GUESSES).fill(0),
     totalWinGuesses: 0,
     lastDailyDate: null,
     lastDailyOutcome: null,
@@ -95,19 +95,27 @@ function pickDailySolutionIndex(dateKey: string) {
 function loadStats(): Stats {
   // SSR-safe
   if (import.meta.server) return defaultStats()
+
   try {
     const raw = localStorage.getItem(LS_STATS)
     if (!raw) return defaultStats()
+
     const parsed = JSON.parse(raw) as Partial<Stats>
+
     return {
       ...defaultStats(),
       ...parsed,
-      guessDist: { ...defaultStats().guessDist, ...(parsed.guessDist || {}) },
+      // Always ensure guessDist has keys 1..6
+      guessDist: Array.isArray(parsed.guessDist)
+      ? parsed.guessDist.slice(0, MAX_GUESSES)
+      : defaultStats().guessDist,
     }
   } catch {
     return defaultStats()
   }
 }
+
+
 
 function saveStats(stats: Stats) {
   if (import.meta.server) return
@@ -454,7 +462,10 @@ export function useWordleGame() {
     if (didWin) {
       stats.wins += 1
       stats.totalWinGuesses += guessesUsed
-      stats.guessDist[guessesUsed] = (stats.guessDist[guessesUsed] || 0) + 1
+      const idx = guessesUsed - 1
+      if (idx >= 0 && idx < stats.guessDist.length) {
+        stats.guessDist[idx] = (stats.guessDist[idx] ?? 0) + 1
+      }
     } else {
       stats.losses += 1
     }
@@ -619,11 +630,11 @@ export function useWordleGame() {
   }
 
   function distWidth(i: number) {
-    const max = Math.max(...Object.values(stats.guessDist))
-    const val = stats.guessDist[i] || 0
-    if (max <= 0) return '0%'
-    return `${Math.round((val / max) * 100)}%`
-  }
+  const max = Math.max(...stats.guessDist, 1)
+  const val = stats.guessDist[i - 1] || 0
+  return `${Math.round((val / max) * 100)}%`
+}
+
 
   function hasAlreadyGuessed(word: string) {
   const w = word.toUpperCase()
