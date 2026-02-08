@@ -12,13 +12,10 @@ builder.Services.AddSwaggerGen();
 // -------------------------
 // DB connection
 // -------------------------
-var conn =
-    builder.Configuration.GetConnectionString("PotionLedgerDb")
-    ?? builder.Configuration["PotionLedgerDb"]
-    ?? "Server=(localdb)\\MSSQLLocalDB;Database=PotionLedgerDb;Trusted_Connection=True;";
+var conn = builder.Configuration.GetConnectionString("PotionLedgerDb");
 
 if (string.IsNullOrWhiteSpace(conn))
-    throw new InvalidOperationException("Missing connection string 'PotionLedgerDb'.");
+    throw new InvalidOperationException("Missing SQL connection string.");
 
 builder.Services.AddDbContext<PotionLedgerDbContext>(options =>
 {
