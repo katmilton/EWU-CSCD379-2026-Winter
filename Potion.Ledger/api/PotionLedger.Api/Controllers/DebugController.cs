@@ -24,68 +24,98 @@ public class DebugController : ControllerBase
         var utc = DateTime.UtcNow;
         var provider = _db.Database.ProviderName ?? "(unknown)";
 
-        // Try to find the connection string via all the common keys
-        // (we do NOT return the password)
+        // Read the same way Program.cs does (plus common fallbacks).
         string? conn =
             _config.GetConnectionString("PotionLedgerDb")
             ?? _config.GetConnectionString("PotionLedgerDB")
             ?? _config.GetConnectionString("DefaultConnection")
             ?? _config["ConnectionStrings:PotionLedgerDb"]
-            ?? _config["ConnectionStrings:PotionLedgerDb".Replace(":", "__")] // ConnectionStrings__PotionLedgerDb
+            ?? _config["ConnectionStrings__PotionLedgerDb"]
             ?? _config["PotionLedgerDb"]
             ?? _config["PotionLedgerDB"]
             ?? _config["DefaultConnection"];
 
-        // Return a sanitized view (server + database only)
-        object? parsedConn = null;
+        object? connInfo = null;
         if (!string.IsNullOrWhiteSpace(conn))
         {
             try
             {
                 var sb = new SqlConnectionStringBuilder(conn);
-                parsedConn = new
+                connInfo = new
                 {
-                    sb.DataSource,
-                    sb.InitialCatalog,
-                    sb.Encrypt,
-                    sb.TrustServerCertificate,
-                    sb.ConnectTimeout,
-                    AuthMode = sb.Authentication.ToString(), // will show "NotSpecified" for SQL auth
-                    HasUserId = !string.IsNullOrWhiteSpace(sb.UserID),
-                    HasPassword = !string.IsNullOrWhiteSpace(sb.Password),
+                    dataSource = sb.DataSource,
+                    initialCatalog = sb.InitialCatalog,
+                    encrypt = sb.Encrypt,
+                    trustServerCertificate = sb.TrustServerCertificate,
+                    connectTimeout = sb.ConnectTimeout,
+                    authMode = sb.Authentication.ToString(), // NotSpecified = SQL auth
+                    hasUserId = !string.IsNullOrWhiteSpace(sb.UserID),
+                    hasPassword = !string.IsNullOrWhiteSpace(sb.Password),
                 };
             }
-            catch
+            catch (Exception parseEx)
             {
-                parsedConn = new { parseError = "Could not parse connection string (format issue)." };
+                connInfo = new { parseError = parseEx.Message };
             }
         }
 
-        try
+        if (string.IsNullOrWhiteSpace(conn))
         {
-            // This is the real test:
-            // - For SQL Server provider, CanConnectAsync() actually tries to reach the DB.
-            var canConnect = await _db.Database.CanConnectAsync();
-
-            return Ok(new
-            {
-                ok = canConnect,
-                provider,
-                utc,
-                connFound = !string.IsNullOrWhiteSpace(conn),
-                connInfo = parsedConn,
-            });
-        }
-        catch (Exception ex)
-        {
-            // Return the real reason (message + inner exception chain)
             return Ok(new
             {
                 ok = false,
                 provider,
                 utc,
-                connFound = !string.IsNullOrWhiteSpace(conn),
-                connInfo = parsedConn,
+                connFound = false,
+                connInfo
+            });
+        }
+
+        try
+        {
+            // Force a real connection attempt to get the real SqlException
+            await _db.Database.OpenConnectionAsync();
+
+            // If we got here, we connected successfully
+            await _db.Database.CloseConnectionAsync();
+
+            return Ok(new
+            {
+                ok = true,
+                provider,
+                utc,
+                connFound = true,
+                connInfo
+            });
+        }
+        catch (SqlException ex)
+        {
+            // This is the gold we need: error number + message
+            return Ok(new
+            {
+                ok = false,
+                provider,
+                utc,
+                connFound = true,
+                connInfo,
+                sqlError = new
+                {
+                    ex.Number,
+                    ex.State,
+                    ex.Class,
+                    ex.Message
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            return Ok(new
+            {
+                ok = false,
+                provider,
+                utc,
+                connFound = true,
+                connInfo,
                 error = new
                 {
                     exType = ex.GetType().FullName,
