@@ -3,10 +3,6 @@ const props = withDefaults(defineProps<{ variant?: 1 | 2 | 3 }>(), {
   variant: 1,
 })
 
-// Three distinct, "hip" logos (extra credit):
-// 1) Hex flask
-// 2) Moon flask
-// 3) Rune seal
 const v = computed(() => props.variant)
 </script>
 
