@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
-import { createSetupFromSeed, type IngredientKey, type Order, type PotionType, type SeededSetup } from "@/utils/gameFromSeed"
+import { createSetupFromSeed, type IngredientKey, type PotionType, type SeededSetup, type SeededOrder } from "@/utils/gameFromSeed"
 
 type Mode = "daily" | "random"
 
@@ -171,7 +171,7 @@ const inventory = reactive<Record<IngredientKey, number>>({
   crystal: 0,
 })
 
-const orders = ref<Order[]>([])
+const orders = ref<SeededOrder[]>([])
 
 const turn = ref(1)
 const score = ref(0)
@@ -234,21 +234,22 @@ function potionTypeColor(t: PotionType) {
   return "error"
 }
 
-function canPayReq(o: Order) {
+function canPayReq(o: SeededOrder) {
   return (Object.keys(o.req) as IngredientKey[]).every((k) => inventory[k] >= o.req[k])
 }
 
-function riskThresholdFor(o: Order) {
+function riskThresholdFor(o: SeededOrder) {
   const curseTax = Math.floor(curse.value / 2)
+  // ✅ o.type is PotionType, so index is safe
   return typeRiskThreshold[o.type] + stability.value - curseTax
 }
 
-function cursedAutoFail(o: Order) {
+function cursedAutoFail(o: SeededOrder) {
   if (curse.value >= 3 && o.type === "volatile" && heat.value > 2) return true
   return false
 }
 
-function willFizzle(o: Order) {
+function willFizzle(o: SeededOrder) {
   if (cursedAutoFail(o)) return true
   return heat.value > riskThresholdFor(o)
 }
@@ -297,7 +298,7 @@ function restock() {
   log.value.unshift("You restock supplies (+1 each). The curse deepens...")
 }
 
-function brew(o: Order) {
+function brew(o: SeededOrder) {
   if (finished.value) return
   if (!canPayReq(o)) return
 
@@ -323,14 +324,14 @@ function brew(o: Order) {
   if (fizzle) {
     fizzles.value += 1
     curse.value = Math.min(curseMax, curse.value + 1)
-    log.value.unshift(`💥 FIZZLE! "${o.name}" failed. Curse rises to ${curse.value}.`)
+    log.value.unshift(`💥 FIZZLE! "${o.title}" failed. Curse rises to ${curse.value}.`)
   } else {
     score.value += payout
     if (lateBy > 0) {
       curse.value = Math.min(curseMax, curse.value + 1)
       log.value.unshift(`✅ Brewed late by ${lateBy}. Earned ${payout}. Curse rises to ${curse.value}.`)
     } else {
-      log.value.unshift(`✅ Brewed "${o.name}". Earned ${payout}.`)
+      log.value.unshift(`✅ Brewed "${o.title}". Earned ${payout}.`)
     }
   }
 
@@ -340,6 +341,7 @@ function brew(o: Order) {
   // end checks
   checkEnd()
 }
+
 watch(
   () => route.query,
   async (q) => {
@@ -503,7 +505,7 @@ const progressText = computed(() => `${score.value} / ${targetScore}`)
               <v-card variant="tonal" rounded="lg" class="pa-3">
                 <div class="d-flex align-center justify-space-between">
                   <div class="text-subtitle-1">
-                    {{ o.name }}
+                    {{ o.title }}
                     <v-chip class="ml-2" size="x-small" :color="potionTypeColor(o.type)" variant="tonal">
                       {{ potionTypeLabel(o.type) }}
                     </v-chip>
