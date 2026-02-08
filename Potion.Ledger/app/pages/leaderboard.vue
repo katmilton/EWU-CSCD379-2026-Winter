@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref, onMounted } from "vue"
+import { usePotionLedgerApi } from "~/composables/usePotionLedgerRun"
 import type { LeaderboardResponse } from "~/composables/usePotionLedgerRun"
 
 const api = usePotionLedgerApi()

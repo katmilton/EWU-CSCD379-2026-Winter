@@ -1,3 +1,21 @@
+// --- Leaderboard types ---
+export type LeaderboardEntryDto = {
+  id: number | string;
+  playerName: string;
+  score: number;
+  turnsUsed: number;
+  fizzles: number;
+  createdUtc: string;
+  seed?: number;
+  mode?: string;
+};
+
+export type LeaderboardResponse = {
+  generatedUtc: string;
+  entries: LeaderboardEntryDto[];
+};
+
+
 // app/composables/usePotionLedgerRun.ts
 export type TestimonialCreateRequest = {
   name: string;
@@ -22,19 +40,18 @@ export type TestimonialsResponse = {
 
 export function usePotionLedgerApi() {
   const config = useRuntimeConfig();
-  const base = String(config.public.apiBase || "").replace(/\/$/, "");
-
+  const baseURL = String(config.public.apiBase || "").replace(/\/$/, "");
   // --------------------
   // Testimonials
   // --------------------
   async function getTestimonials(): Promise<TestimonialsResponse> {
-    return await $fetch<TestimonialsResponse>(`${base}/api/testimonials`);
+    return await $fetch<TestimonialsResponse>(`${baseURL}/api/testimonials`);
   }
 
   async function postTestimonial(
     payload: TestimonialCreateRequest
   ): Promise<TestimonialDto> {
-    return await $fetch<TestimonialDto>(`${base}/api/testimonials`, {
+    return await $fetch<TestimonialDto>(`${baseURL}/api/testimonials`, {
       method: "POST",
       body: payload,
     });
@@ -44,25 +61,28 @@ export function usePotionLedgerApi() {
   // Seeds (for /play)
   // --------------------
   async function getDailySeed(): Promise<{ date: string; seed: number }> {
-    return await $fetch(`${base}/api/seeds/daily`);
+    return await $fetch(`${baseURL}/api/seeds/daily`);
   }
 
   async function getRandomSeed(): Promise<{ seed: number }> {
-    return await $fetch(`${base}/api/seeds/random`);
+    return await $fetch(`${baseURL}/api/seeds/random`);
   }
 
   // --------------------
   // Runs / Leaderboard (example)
   // --------------------
   async function postRun(payload: any) {
-    return await $fetch(`${base}/api/runs`, { method: "POST", body: payload });
+    return await $fetch(`${baseURL}/api/runs`, { method: "POST", body: payload });
   }
 
-  async function getLeaderboardAllTime() {
-    return await $fetch(`${base}/api/leaderboard/alltime`);
+  
+
+  async function getLeaderboardAllTime(): Promise<LeaderboardResponse> {
+    return await $fetch<LeaderboardResponse>(`${baseURL}/api/leaderboard/alltime`);
   }
 
   return {
+    baseURL,
     // testimonials
     getTestimonials,
     postTestimonial,

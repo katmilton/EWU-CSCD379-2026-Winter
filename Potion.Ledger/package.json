@@ -8,7 +8,8 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "test": "node --test"
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "@mdi/font": "^7.4.47",
@@ -19,6 +20,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.2.2",
+    "@vitejs/plugin-vue": "^6.0.4",
     "@vue/test-utils": "^2.4.6",
     "happy-dom": "^20.5.0",
     "vite-plugin-vuetify": "^2.1.3",
