@@ -42,7 +42,6 @@ function fmtUtc(iso: string) {
         </h1>
         <p class="pl-sub">
           Top 10 runs (all time) 
-          <span class="pl-muted">({{ api.baseURL }})</span>
         </p>
       </div>
 

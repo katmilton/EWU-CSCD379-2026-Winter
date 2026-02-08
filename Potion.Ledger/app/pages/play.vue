@@ -23,28 +23,38 @@ async function getRandomSeed(): Promise<RandomSeedResponse> {
   return (await $fetch(`${apiBase}/api/seeds/random`)) as RandomSeedResponse
 }
 
-// ---------- HARD MODE TUNABLES (balanced to be losable)
+// If your API uses different keys, adjust here.
+type RunCreateRequest = {
+  playerName: string
+  score: number
+  turnsUsed: number
+  fizzles: number
+  seed: number
+  mode: Mode
+  playedUtc: string
+}
+type RunCreateResponse = { allTimeRank?: number; rank?: number }
+
+async function postRun(payload: RunCreateRequest): Promise<RunCreateResponse> {
+  return (await $fetch(`${apiBase}/api/runs`, { method: "POST", body: payload })) as RunCreateResponse
+}
+
+// ---------- HARD MODE TUNABLES
 const turnsMax = 8
 const targetScore = 190
 
 const heatMax = 12
 const baseStability = 2
-const fizzleLimit = 2 // fewer mistakes allowed
+const fizzleLimit = 2
 
-// thresholds are LOWER => heat matters
 const typeRiskThreshold: Record<PotionType, number> = {
   stable: 7,
   precision: 5,
   volatile: 3,
 }
 
-// Curse: increases when you’re late or fizzle; creates deterministic spiral pressure
-// Curse thresholds:
-//  3+: volatile always fizzles unless you stir this turn (heat <= 2)
-//  5+: precision loses -10 reward (even if brewed successfully)
 const curseMax = 6
 
-// Late payout: harsher than before: -15%/turn late, minimum 40%
 function payoutMultiplier(turn: number, deadlineTurn: number) {
   const lateBy = Math.max(0, turn - deadlineTurn)
   const multiplier = Math.max(0.4, 1 - 0.15 * lateBy)
@@ -196,7 +206,6 @@ function startGameFromSeed(s: number) {
   seed.value = norm
   setup.value = createSetupFromSeed(norm)
 
-  // reset gameplay
   inventory.herb = setup.value.invStart.herb
   inventory.essence = setup.value.invStart.essence
   inventory.ember = setup.value.invStart.ember
@@ -215,6 +224,11 @@ function startGameFromSeed(s: number) {
   finished.value = false
   outcome.value = null
   endReason.value = ""
+
+  // reset end dialog stuff too
+  endDialog.value = false
+  submitResult.value = null
+  submitError.value = null
 }
 
 function restartWithSameSeed() {
@@ -240,7 +254,6 @@ function canPayReq(o: SeededOrder) {
 
 function riskThresholdFor(o: SeededOrder) {
   const curseTax = Math.floor(curse.value / 2)
-  // ✅ o.type is PotionType, so index is safe
   return typeRiskThreshold[o.type] + stability.value - curseTax
 }
 
@@ -254,10 +267,29 @@ function willFizzle(o: SeededOrder) {
   return heat.value > riskThresholdFor(o)
 }
 
+// ---------- End-of-run dialog state + submit
+const endDialog = ref(false)
+const playerName = ref("")
+const submittingScore = ref(false)
+const submitResult = ref<{ allTimeRank: number } | null>(null)
+const submitError = ref<string | null>(null)
+
+const canSubmit = computed(() => {
+  return !submittingScore.value && playerName.value.trim().length > 0
+})
+
+function openEndDialog() {
+  // open dialog when run ends
+  endDialog.value = true
+  submitResult.value = null
+  submitError.value = null
+}
+
 function endRun(type: "win" | "loss", reason: string) {
   finished.value = true
   outcome.value = type
   endReason.value = reason
+  openEndDialog()
 }
 
 function checkEnd() {
@@ -270,12 +302,9 @@ function checkEnd() {
 function nextTurn() {
   if (finished.value) return
 
-  // passive heat bleed-off each turn
   if (heat.value > 0) heat.value = Math.max(0, heat.value - 1)
-
   turn.value += 1
 
-  // curse ticks up slightly over time
   if (turn.value >= 5) curse.value = Math.min(curseMax, curse.value + 1)
 
   log.value.unshift(`Turn ${turn.value} begins...`)
@@ -294,7 +323,7 @@ function restock() {
   inventory.essence += 1
   inventory.ember += 1
   inventory.crystal += 1
-  curse.value = Math.min(curseMax, curse.value + 1) // “price” of restocking
+  curse.value = Math.min(curseMax, curse.value + 1)
   log.value.unshift("You restock supplies (+1 each). The curse deepens...")
 }
 
@@ -302,21 +331,17 @@ function brew(o: SeededOrder) {
   if (finished.value) return
   if (!canPayReq(o)) return
 
-  // pay ingredients
   for (const k of Object.keys(o.req) as IngredientKey[]) {
     inventory[k] -= o.req[k]
   }
 
-  // brewing increases heat
   heat.value = Math.min(heatMax, heat.value + o.heatOnBrew)
 
   const fizzle = willFizzle(o)
 
-  // compute payout
   const { lateBy, multiplier } = payoutMultiplier(turn.value, o.deadlineTurn)
   let payout = Math.round(o.reward * multiplier)
 
-  // curse penalty for precision
   if (!fizzle && curse.value >= 5 && o.type === "precision") {
     payout = Math.max(0, payout - 10)
   }
@@ -335,13 +360,42 @@ function brew(o: SeededOrder) {
     }
   }
 
-  // remove order after attempt
   orders.value = orders.value.filter((x) => x.id !== o.id)
-
-  // end checks
   checkEnd()
 }
 
+async function submitRun() {
+  if (!seed.value) return
+  submittingScore.value = true
+  submitError.value = null
+
+  try {
+    const res = await postRun({
+      playerName: playerName.value.trim(),
+      score: score.value,
+      turnsUsed: Math.min(turn.value, turnsMax),
+      fizzles: fizzles.value,
+      seed: seed.value,
+      mode: mode.value,
+      playedUtc: new Date().toISOString(),
+    })
+
+    submitResult.value = { allTimeRank: res.allTimeRank ?? res.rank ?? 0 }
+  } catch (e: any) {
+    submitError.value = e?.data || e?.message || "Failed to submit run."
+  } finally {
+    submittingScore.value = false
+  }
+}
+
+function playAgain() {
+  endDialog.value = false
+  submitResult.value = null
+  submitError.value = null
+  restartWithSameSeed()
+}
+
+// boot sync with query params
 watch(
   () => route.query,
   async (q) => {
@@ -537,7 +591,7 @@ const progressText = computed(() => `${score.value} / ${targetScore}`)
             </v-col>
           </v-row>
 
-          <!-- End state -->
+          <!-- Optional inline end state -->
           <v-alert v-if="finished" :type="outcome === 'win' ? 'success' : 'error'" variant="tonal" class="mt-4">
             <div class="d-flex flex-column ga-1">
               <div class="text-subtitle-1">
@@ -552,6 +606,71 @@ const progressText = computed(() => `${score.value} / ${targetScore}`)
         </template>
       </v-card-text>
     </v-card>
+
+    <!-- End-of-run dialog -->
+    <v-dialog v-model="endDialog" max-width="640">
+      <v-card rounded="xl">
+        <v-card-title class="text-h6">
+          {{ outcome === "win" ? "Victory!" : "Fizzle…" }}
+        </v-card-title>
+
+        <v-card-text>
+          <div class="mb-3">
+            <div class="text-body-2 opacity-80">Seed: <b>{{ seed }}</b></div>
+            <div class="text-body-2 opacity-80">Final score: <b>{{ score }}</b></div>
+            <div class="text-body-2 opacity-80">Turns used: <b>{{ Math.min(turn, turnsMax) }}</b></div>
+            <div class="text-body-2 opacity-80">Fizzles: <b>{{ fizzles }}</b></div>
+          </div>
+
+          <v-alert v-if="endReason" type="info" variant="tonal" class="mb-3">
+            {{ endReason }}
+          </v-alert>
+
+          <v-divider class="my-3" />
+
+          <div class="text-subtitle-2 mb-2">Submit your score</div>
+
+          <v-row>
+            <v-col cols="12" md="7">
+              <v-text-field
+                v-model="playerName"
+                label="Player name"
+                maxlength="24"
+                counter
+                density="comfortable"
+                :disabled="submittingScore"
+              />
+            </v-col>
+
+            <v-col cols="12" md="5" class="d-flex align-end">
+              <v-btn
+                color="primary"
+                block
+                :loading="submittingScore"
+                :disabled="!canSubmit"
+                @click="submitRun"
+              >
+                Submit
+              </v-btn>
+            </v-col>
+          </v-row>
+
+          <v-alert v-if="submitResult" type="success" variant="tonal" class="mt-2">
+            Submitted! All-time rank: <b>#{{ submitResult.allTimeRank }}</b>
+          </v-alert>
+
+          <v-alert v-if="submitError" type="error" variant="tonal" class="mt-2">
+            {{ submitError }}
+          </v-alert>
+        </v-card-text>
+
+        <v-card-actions class="pa-4">
+          <v-spacer />
+          <v-btn variant="tonal" @click="endDialog = false">Close</v-btn>
+          <v-btn color="primary" @click="playAgain">Play again</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
