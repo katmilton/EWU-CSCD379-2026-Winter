@@ -1,12 +1,11 @@
 using System.Net.Http.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 using PotionLedger.Api.Dtos;
 
-public class ControllerIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+public class ControllerIntegrationTests : IClassFixture<TestWebApplicationFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
-    public ControllerIntegrationTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    private readonly TestWebApplicationFactory _factory;
+    public ControllerIntegrationTests(TestWebApplicationFactory factory) => _factory = factory;
 
     [Fact]
     public async Task PostRun_ReturnsOk()

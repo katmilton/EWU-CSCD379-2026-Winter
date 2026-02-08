@@ -32,7 +32,23 @@ export default defineNuxtConfig({
   vuetify: {
     vuetifyOptions: {
       theme: {
-        defaultTheme: 'light',
+        // Dark theme so component text stays readable on our dark surfaces.
+        defaultTheme: 'potionDark',
+        themes: {
+          potionDark: {
+            dark: true,
+            colors: {
+              background: '#07060a',
+              surface: '#100c18',
+              primary: '#9dffb0',
+              secondary: '#b78bff',
+              error: '#ff5a7a',
+              warning: '#ffd56b',
+              info: '#86b7ff',
+              success: '#78ffa0',
+            },
+          },
+        },
       },
     },
   },

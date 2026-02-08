@@ -1,0 +1,43 @@
+name: Frontend CI/CD (Azure Static Web Apps)
+
+on:
+  push:
+    branches:
+      - kmilton1/Assignment3
+  pull_request:
+    branches:
+      - kmilton1/Assignment3
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: Potion.Ledger/package-lock.json
+
+      - name: Install
+        working-directory: Potion.Ledger
+        run: npm ci
+
+      - name: Test
+        working-directory: Potion.Ledger
+        run: npm test
+
+      - name: Generate static site
+        working-directory: Potion.Ledger
+        run: npm run generate
+
+      - name: Deploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_BLUE_GRASS_03934D610 }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: Potion.Ledger/.output/public
+          skip_app_build: true

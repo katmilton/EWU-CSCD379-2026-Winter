@@ -27,32 +27,48 @@ builder.Services.AddScoped<ITestimonialService, TestimonialService>();
 var origins = (builder.Configuration["CORS_ORIGINS"] ?? "")
     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
+// Sensible defaults so a first deployment works without extra portal steps.
+// You can override by setting CORS_ORIGINS (comma-separated) in Azure App Service.
+if (origins.Length == 0)
+{
+    origins = new[]
+    {
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://blue-grass-03934d610.6.azurestaticapps.net",
+    };
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("GameCors", p =>
     {
-        if (origins.Length > 0)
-            p.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod();
-        else
-            p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod(); // dev fallback
+        p.WithOrigins(origins)
+         .AllowAnyHeader()
+         .AllowAnyMethod();
     });
 });
 
 var app = builder.Build();
-
-// Apply migrations automatically (simple for class projects)
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<PotionLedgerDbContext>();
-    await db.Database.MigrateAsync();
-}
-
 app.UseCors("GameCors");
 
-if (app.Environment.IsDevelopment())
+// Apply migrations automatically for local dev (and optionally in prod).
+// This avoids breaking CI / integration tests where no SQL Server is available.
+var runMigrations = app.Environment.IsDevelopment()
+    || string.Equals(builder.Configuration["RUN_MIGRATIONS"], "true", StringComparison.OrdinalIgnoreCase);
+
+if (runMigrations)
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<PotionLedgerDbContext>();
+        await db.Database.MigrateAsync();
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning(ex, "Skipping DB migration (DB not available).");
+    }
 }
 
 app.MapControllers();

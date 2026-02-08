@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PotionLedger.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+94c52532eb277153e7114592d5fd092a9f1929d5")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8552ec688d94d0c9303e6e76d740fed7e8a7b286")]
 [assembly: System.Reflection.AssemblyProductAttribute("PotionLedger.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PotionLedger.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

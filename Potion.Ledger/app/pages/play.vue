@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { RunCreateResponse } from "~/composables/usePotionLedgerRun"
+
 type IngredientKey = "herb" | "essence" | "ember" | "crystal"
 type PotionType = "stable" | "volatile" | "precision"
 
@@ -113,6 +115,54 @@ const finished = ref(false)
 const outcome = ref<"win" | "loss" | null>(null)
 const endReason = ref("")
 
+// --- API submission (tie frontend -> backend)
+const api = usePotionLedgerApi()
+const playerName = ref("")
+const submittingRun = ref(false)
+const runSubmitError = ref<string | null>(null)
+const runSubmitOk = ref<RunCreateResponse | null>(null)
+
+// --- UI animation state (extra credit)
+const anim = ref<'idle' | 'brewOk' | 'brewFail' | 'stir' | 'dilute'>('idle')
+let animTimer: any = null
+function pulse(next: typeof anim.value) {
+  anim.value = next
+  if (animTimer) clearTimeout(animTimer)
+  animTimer = setTimeout(() => (anim.value = 'idle'), 650)
+}
+
+function turnsUsedNow() {
+  // turn is incremented after each action; clamp to the max for reporting.
+  return Math.min(turn.value, turnsMax)
+}
+
+async function submitRun() {
+  runSubmitError.value = null
+  const name = playerName.value.trim()
+  if (!name) {
+    runSubmitError.value = "Name is required."
+    return
+  }
+  if (name.length > 24) {
+    runSubmitError.value = "Name must be 24 characters or less."
+    return
+  }
+
+  submittingRun.value = true
+  try {
+    runSubmitOk.value = await api.postRun({
+      playerName: name,
+      score: score.value,
+      turnsUsed: turnsUsedNow(),
+      fizzles: fizzles.value,
+    })
+  } catch (e: any) {
+    runSubmitError.value = e?.data || e?.message || "Failed to submit run."
+  } finally {
+    submittingRun.value = false
+  }
+}
+
 // ---------- Helpers
 function potionTypeLabel(t: PotionType) {
   if (t === "stable") return "Stable"
@@ -168,6 +218,7 @@ function nextTurn() {
 // ---------- Actions
 function stir() {
   if (finished.value) return
+  pulse('stir')
   const before = heat.value
   // weaker than before: -2 heat
   heat.value = Math.max(0, heat.value - 2)
@@ -180,6 +231,7 @@ function stir() {
 
 function dilute() {
   if (finished.value) return
+  pulse('dilute')
   // stronger cost: needs 2 essence
   if (inventory.essence < 2) {
     log.value.unshift(`Turn ${turn.value}: Dilute failed ❌ (need 2 Essence)`)
@@ -199,6 +251,7 @@ function brew(o: Order) {
   if (finished.value) return
 
   if (!canPayReq(o)) {
+    pulse('brewFail')
     fizzles.value += 1
     curse.value = Math.min(curseMax, curse.value + 1)
     score.value = Math.max(0, score.value - 10)
@@ -208,6 +261,7 @@ function brew(o: Order) {
   }
 
   if (willFizzle(o)) {
+    pulse('brewFail')
     fizzles.value += 1
     curse.value = Math.min(curseMax, curse.value + 2) // fizzles hurt more
 
@@ -245,6 +299,8 @@ function brew(o: Order) {
   const gained = baseGain + zeroBonus
   score.value += gained
 
+  pulse('brewOk')
+
   const beforeHeat = heat.value
   heat.value = Math.min(heatMax, heat.value + o.heatOnBrew) // heats up a lot
 
@@ -254,10 +310,13 @@ function brew(o: Order) {
     `Turn ${turn.value}: Brewed ✅ ${o.name} +${gained} | Heat ${beforeHeat}→${heat.value}${lateText}${curseText}`
   )
 
+  pulse('brewOk')
+
   nextTurn()
 }
 
 function resetRun() {
+  pulse('idle')
   Object.assign(inventory, invStart)
   orders.value = [...ordersSeed]
   turn.value = 1
@@ -270,6 +329,12 @@ function resetRun() {
   finished.value = false
   outcome.value = null
   endReason.value = ""
+
+  // reset submission state
+  playerName.value = ""
+  submittingRun.value = false
+  runSubmitError.value = null
+  runSubmitOk.value = null
 }
 
 function orderChipText(o: Order) {
@@ -303,6 +368,22 @@ function orderChipText(o: Order) {
     <div class="pl-grid">
       <v-card class="pl-panel pa-3" variant="tonal">
         <h3 class="pl-h">Status</h3>
+        <div class="pl-cauldronWrap" :data-anim="anim">
+          <div class="pl-cauldron">
+            <div class="pl-bubbles">
+              <span v-for="i in 7" :key="i" class="pl-bubble" />
+            </div>
+            <div class="pl-liquid" />
+            <div class="pl-rim" />
+            <div class="pl-feet">
+              <span /><span /><span />
+            </div>
+          </div>
+          <div class="pl-cauldronHint">
+            <v-chip size="small" variant="tonal" color="warning">Heat {{ heat }}</v-chip>
+            <v-chip size="small" variant="tonal" color="info">Stability {{ stability }}</v-chip>
+          </div>
+        </div>
         <div><b>Turn:</b> {{ turn }} / {{ turnsMax }}</div>
         <div><b>Score:</b> {{ score }}</div>
         <div><b>Fizzles:</b> {{ fizzles }} / {{ fizzleLimit }}</div>
@@ -419,6 +500,43 @@ function orderChipText(o: Order) {
         <div><b>Curse:</b> {{ curse }} / {{ curseMax }}</div>
 
         <v-divider class="my-4" />
+
+        <v-card class="pl-panel pa-4" variant="tonal">
+          <h3 class="pl-h">Submit your score</h3>
+          <div class="pl-muted mb-3">
+            This saves your run to the database and updates the leaderboard.
+          </div>
+
+          <v-alert v-if="runSubmitOk" type="success" variant="tonal" class="mb-3">
+            Saved! Your all-time rank: <b>#{{ runSubmitOk.rankAllTime }}</b>
+          </v-alert>
+
+          <v-alert v-if="runSubmitError" type="error" variant="tonal" class="mb-3">
+            {{ runSubmitError }}
+          </v-alert>
+
+          <div class="d-flex flex-wrap ga-3 align-center">
+            <v-text-field
+              v-model="playerName"
+              label="Name"
+              maxlength="24"
+              counter
+              density="comfortable"
+              variant="outlined"
+              style="min-width: 240px; flex: 1 1 240px;"
+              :disabled="!!runSubmitOk || submittingRun"
+            />
+
+            <v-btn
+              color="primary"
+              :loading="submittingRun"
+              :disabled="!!runSubmitOk"
+              @click="submitRun"
+            >
+              {{ runSubmitOk ? 'Submitted' : 'Submit run' }}
+            </v-btn>
+          </div>
+        </v-card>
 
         <div class="pl-actions">
           <v-btn color="primary" to="/leaderboard">View Leaderboard</v-btn>
