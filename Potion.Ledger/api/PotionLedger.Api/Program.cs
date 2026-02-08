@@ -19,14 +19,11 @@ if (string.IsNullOrWhiteSpace(conn))
 
 builder.Services.AddDbContext<PotionLedgerDbContext>(options =>
 {
-    options.UseSqlServer(
-        conn,
-        sql => sql.EnableRetryOnFailure(
-            maxRetryCount: 8,
-            maxRetryDelay: TimeSpan.FromSeconds(10),
-            errorNumbersToAdd: null
-        )
-    );
+    options.UseSqlServer(conn, sql => sql.EnableRetryOnFailure(
+        maxRetryCount: 8,
+        maxRetryDelay: TimeSpan.FromSeconds(10),
+        errorNumbersToAdd: null
+    ));
 });
 
 
