@@ -39,60 +39,18 @@ export type TestimonialsResponse = {
 // If you already have these types in this file, do NOT duplicate—merge them.
 
 export function usePotionLedgerApi() {
-  const config = useRuntimeConfig();
-  const baseURL = String(config.public.apiBase || "").replace(/\/$/, "");
-  // --------------------
-  // Testimonials
-  // --------------------
-  async function getTestimonials(): Promise<TestimonialsResponse> {
-    return await $fetch<TestimonialsResponse>(`${baseURL}/api/testimonials`);
-  }
-
-  async function postTestimonial(
-    payload: TestimonialCreateRequest
-  ): Promise<TestimonialDto> {
-    return await $fetch<TestimonialDto>(`${baseURL}/api/testimonials`, {
-      method: "POST",
-      body: payload,
-    });
-  }
-
-  // --------------------
-  // Seeds (for /play)
-  // --------------------
-  async function getDailySeed(): Promise<{ date: string; seed: number }> {
-    return await $fetch(`${baseURL}/api/seeds/daily`);
-  }
-
-  async function getRandomSeed(): Promise<{ seed: number }> {
-    return await $fetch(`${baseURL}/api/seeds/random`);
-  }
-
-  // --------------------
-  // Runs / Leaderboard (example)
-  // --------------------
-  async function postRun(payload: any) {
-    return await $fetch(`${baseURL}/api/runs`, { method: "POST", body: payload });
-  }
-
-  
-
-  async function getLeaderboardAllTime(): Promise<LeaderboardResponse> {
-    return await $fetch<LeaderboardResponse>(`${baseURL}/api/leaderboard/alltime`);
-  }
+  const config = useRuntimeConfig()
+  const baseURL = config.public.apiBase.replace(/\/+$/, "") // trim trailing /
 
   return {
     baseURL,
-    // testimonials
-    getTestimonials,
-    postTestimonial,
 
-    // seeds
-    getDailySeed,
-    getRandomSeed,
-
-    // runs/leaderboard (keep or remove based on what you already have)
-    postRun,
-    getLeaderboardAllTime,
-  };
+    getTestimonials: () => $fetch(`${baseURL}/api/testimonials`),
+    postTestimonial: (body: any) => $fetch(`${baseURL}/api/testimonials`, { method: "POST", body }),
+    getLeaderboardAllTime: () => $fetch(`${baseURL}/api/leaderboard/alltime`),
+    getDailySeed: () => $fetch(`${baseURL}/api/seeds/daily`),
+    getRandomSeed: () => $fetch(`${baseURL}/api/seeds/random`),
+    postRun: (body: any) => $fetch(`${baseURL}/api/runs`, { method: "POST", body }),
+  }
 }
+
