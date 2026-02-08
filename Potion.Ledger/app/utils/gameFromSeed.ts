@@ -1,49 +1,78 @@
-import { mulberry32, randInt } from "./seeded";
+import { mulberry32, randInt } from "./seeded"
 
-export type SeededOrder = { id: string; title: string; reward: number; penalty: number };
+export type IngredientKey = "herb" | "essence" | "ember" | "crystal"
+export type PotionType = "stable" | "volatile" | "precision"
+
+export type Order = {
+  id: number
+  name: string
+  type: PotionType
+  reward: number
+  deadlineTurn: number
+  heatOnBrew: number
+  req: Record<IngredientKey, number>
+}
 
 export type SeededSetup = {
-  seed: number;
-  invStart: Record<string, number>;
-  ordersSeed: SeededOrder[];
-};
+  seed: number
+  invStart: Record<IngredientKey, number>
+  ordersSeed: Order[]
+}
 
-// ✅ ensures we never return undefined
-function pickNonEmpty<T>(rng: () => number, arr: readonly [T, ...T[]]): T {
-  return arr[Math.floor(rng() * arr.length)]!;
+/**
+ * IMPORTANT:
+ * Do NOT use tuple typing here — it causes IDE squiggles in Nuxt projects.
+ * Instead, we enforce non-empty at runtime with a guard.
+ */
+const ORDER_POOL: readonly {
+  name: string
+  type: PotionType
+  baseReward: number
+  heat: number
+  req: Record<IngredientKey, number>
+}[] = [
+  { name: "Verdant Healing Draught", type: "stable",    baseReward: 38, heat: 3, req: { herb: 2, essence: 1, ember: 0, crystal: 0 } },
+  { name: "Ember Tonic",             type: "volatile",  baseReward: 58, heat: 5, req: { herb: 1, essence: 0, ember: 2, crystal: 0 } },
+  { name: "Clarity Serum",           type: "precision", baseReward: 56, heat: 4, req: { herb: 0, essence: 2, ember: 0, crystal: 1 } },
+  { name: "Aether Elixir",           type: "precision", baseReward: 78, heat: 4, req: { herb: 1, essence: 1, ember: 1, crystal: 1 } },
+  { name: "Cinderstorm Philter",     type: "volatile",  baseReward: 88, heat: 6, req: { herb: 0, essence: 1, ember: 3, crystal: 1 } },
+]
+
+// safer picker — no tuple tricks required
+function pick<T>(rng: () => number, arr: readonly T[]): T {
+  if (arr.length === 0) {
+    throw new Error("ORDER_POOL is empty — this should never happen.")
+  }
+  return arr[Math.floor(rng() * arr.length)]!
 }
 
 export function createSetupFromSeed(seed: number): SeededSetup {
-  const rng = mulberry32(seed);
+  const rng = mulberry32(seed)
 
-  const ingredients = ["mandrake", "nightshade", "mothWing", "stardust", "brine", "emberSalt"] as const;
-
-  const invStart: Record<string, number> = {};
-  for (const ing of ingredients) {
-    invStart[ing] = randInt(rng, 1, 5);
+  const invStart: Record<IngredientKey, number> = {
+    herb: randInt(rng, 4, 6),
+    essence: randInt(rng, 3, 5),
+    ember: randInt(rng, 3, 5),
+    crystal: randInt(rng, 1, 3),
   }
 
-  // ✅ non-empty tuple type: readonly [string, ...string[]]
-  const orderNames = [
-    "Witchlight Tonic",
-    "Basilisk Balm",
-    "Frostveil Draught",
-    "Sunfire Syrup",
-    "Gravebloom Elixir",
-    "Sablemist Serum",
-    "Moonmilk Mixture",
-    "Hexbreaker Brew",
-  ] as const satisfies readonly [string, ...string[]];
+  const ordersSeed: Order[] = Array.from({ length: 5 }).map((_, i) => {
+    const pickOrder = pick(rng, ORDER_POOL)
 
-  const ordersSeed: SeededOrder[] = Array.from({ length: 8 }).map((_, i) => {
-    const title = pickNonEmpty(rng, orderNames);
+    const reward = pickOrder.baseReward + randInt(rng, -6, 10)
+    const deadlineTurn = randInt(rng, 3, 6)
+    const heatOnBrew = Math.max(1, pickOrder.heat + randInt(rng, -1, 1))
+
     return {
-      id: `ord-${seed}-${i}`,
-      title,
-      reward: randInt(rng, 8, 18),
-      penalty: randInt(rng, 4, 10),
-    };
-  });
+      id: i + 1,
+      name: pickOrder.name,
+      type: pickOrder.type,
+      reward,
+      deadlineTurn,
+      heatOnBrew,
+      req: { ...pickOrder.req },
+    }
+  })
 
-  return { seed, invStart, ordersSeed };
+  return { seed, invStart, ordersSeed }
 }
