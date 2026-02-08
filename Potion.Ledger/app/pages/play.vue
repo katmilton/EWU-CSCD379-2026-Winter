@@ -8,14 +8,12 @@ type Mode = "daily" | "random"
 const route = useRoute()
 const router = useRouter()
 
-// --- runtime config for API base
 const config = useRuntimeConfig()
 const apiBase = String(config.public.apiBase || "").replace(/\/+$/, "")
 
 type DailySeedResponse = { date: string; seed: number }
 type RandomSeedResponse = { seed: number }
 
-// --- API calls
 async function getDailySeed(): Promise<DailySeedResponse> {
   return (await $fetch(`${apiBase}/api/seeds/daily`)) as DailySeedResponse
 }
@@ -23,7 +21,6 @@ async function getRandomSeed(): Promise<RandomSeedResponse> {
   return (await $fetch(`${apiBase}/api/seeds/random`)) as RandomSeedResponse
 }
 
-// If your API uses different keys, adjust here.
 type RunCreateRequest = {
   playerName: string
   score: number
@@ -39,7 +36,7 @@ async function postRun(payload: RunCreateRequest): Promise<RunCreateResponse> {
   return (await $fetch(`${apiBase}/api/runs`, { method: "POST", body: payload })) as RunCreateResponse
 }
 
-// ---------- HARD MODE TUNABLES
+// ----- difficulty
 const turnsMax = 8
 const targetScore = 190
 
@@ -61,7 +58,7 @@ function payoutMultiplier(turn: number, deadlineTurn: number) {
   return { lateBy, multiplier }
 }
 
-// ---------- Seeding state
+// ----- seed state
 const mode = ref<Mode>((route.query.mode as Mode) || "daily")
 const seed = ref<number | null>(route.query.seed ? Number(route.query.seed) : null)
 const dailyDate = ref<string | null>(null)
@@ -171,7 +168,7 @@ async function copyShareLink() {
   await navigator.clipboard.writeText(url.toString())
 }
 
-// ---------- Gameplay state (seeded)
+// ----- gameplay state
 const setup = ref<SeededSetup | null>(null)
 
 const inventory = reactive<Record<IngredientKey, number>>({
@@ -182,7 +179,6 @@ const inventory = reactive<Record<IngredientKey, number>>({
 })
 
 const orders = ref<SeededOrder[]>([])
-
 const turn = ref(1)
 const score = ref(0)
 const fizzles = ref(0)
@@ -195,6 +191,13 @@ const curse = ref(0)
 const finished = ref(false)
 const outcome = ref<"win" | "loss" | null>(null)
 const endReason = ref("")
+
+// popup submit
+const endDialog = ref(false)
+const playerName = ref("")
+const submittingScore = ref(false)
+const submitError = ref<string | null>(null)
+const submitResult = ref<{ allTimeRank: number } | null>(null)
 
 function startGameFromSeed(s: number) {
   const norm = normalizeSeed(s)
@@ -225,10 +228,11 @@ function startGameFromSeed(s: number) {
   outcome.value = null
   endReason.value = ""
 
-  // reset end dialog stuff too
   endDialog.value = false
-  submitResult.value = null
+  playerName.value = ""
+  submittingScore.value = false
   submitError.value = null
+  submitResult.value = null
 }
 
 function restartWithSameSeed() {
@@ -236,7 +240,6 @@ function restartWithSameSeed() {
   startGameFromSeed(seed.value)
 }
 
-// ---------- Helpers
 function potionTypeLabel(t: PotionType) {
   if (t === "stable") return "Stable"
   if (t === "precision") return "Precision"
@@ -267,32 +270,19 @@ function willFizzle(o: SeededOrder) {
   return heat.value > riskThresholdFor(o)
 }
 
-// ---------- End-of-run dialog state + submit
-const endDialog = ref(false)
-const playerName = ref("")
-const submittingScore = ref(false)
-const submitResult = ref<{ allTimeRank: number } | null>(null)
-const submitError = ref<string | null>(null)
-
-const canSubmit = computed(() => {
-  return !submittingScore.value && playerName.value.trim().length > 0
-})
-
-function openEndDialog() {
-  // open dialog when run ends
-  endDialog.value = true
-  submitResult.value = null
-  submitError.value = null
-}
+const anyBrewableOrder = computed(() => orders.value.some((o) => canPayReq(o)))
+const progressText = computed(() => `${score.value} / ${targetScore}`)
+const displayTurn = computed(() => Math.min(turn.value, turnsMax))
 
 function endRun(type: "win" | "loss", reason: string) {
   finished.value = true
   outcome.value = type
   endReason.value = reason
-  openEndDialog()
+  endDialog.value = true
 }
 
 function checkEnd() {
+  if (finished.value) return
   if (score.value >= targetScore) return endRun("win", "Target score reached.")
   if (fizzles.value >= fizzleLimit) return endRun("loss", `Too many fizzles (≥ ${fizzleLimit}).`)
   if (turn.value > turnsMax) return endRun("loss", "Out of turns.")
@@ -302,12 +292,26 @@ function checkEnd() {
 function nextTurn() {
   if (finished.value) return
 
+  // ✅ do not allow UI to go past max
+  if (turn.value >= turnsMax) {
+    turn.value = turnsMax + 1
+    checkEnd()
+    return
+  }
+
   if (heat.value > 0) heat.value = Math.max(0, heat.value - 1)
+
   turn.value += 1
 
   if (turn.value >= 5) curse.value = Math.min(curseMax, curse.value + 1)
 
   log.value.unshift(`Turn ${turn.value} begins...`)
+
+  // If you're stuck (no brewable orders) and curse is about to end you anyway, finish quickly.
+  if (!anyBrewableOrder.value && curse.value >= curseMax) {
+    return endRun("loss", "No brewable orders left. The curse consumed your ledger.")
+  }
+
   checkEnd()
 }
 
@@ -325,26 +329,21 @@ function restock() {
   inventory.crystal += 1
   curse.value = Math.min(curseMax, curse.value + 1)
   log.value.unshift("You restock supplies (+1 each). The curse deepens...")
+  checkEnd()
 }
 
 function brew(o: SeededOrder) {
   if (finished.value) return
   if (!canPayReq(o)) return
 
-  for (const k of Object.keys(o.req) as IngredientKey[]) {
-    inventory[k] -= o.req[k]
-  }
-
+  for (const k of Object.keys(o.req) as IngredientKey[]) inventory[k] -= o.req[k]
   heat.value = Math.min(heatMax, heat.value + o.heatOnBrew)
 
   const fizzle = willFizzle(o)
-
   const { lateBy, multiplier } = payoutMultiplier(turn.value, o.deadlineTurn)
   let payout = Math.round(o.reward * multiplier)
 
-  if (!fizzle && curse.value >= 5 && o.type === "precision") {
-    payout = Math.max(0, payout - 10)
-  }
+  if (!fizzle && curse.value >= 5 && o.type === "precision") payout = Math.max(0, payout - 10)
 
   if (fizzle) {
     fizzles.value += 1
@@ -364,10 +363,17 @@ function brew(o: SeededOrder) {
   checkEnd()
 }
 
+// submit
+const canSubmit = computed(() => {
+  const name = playerName.value.trim()
+  return !!seed.value && name.length > 0 && name.length <= 24 && !submittingScore.value
+})
+
 async function submitRun() {
   if (!seed.value) return
-  submittingScore.value = true
   submitError.value = null
+  submitResult.value = null
+  submittingScore.value = true
 
   try {
     const res = await postRun({
@@ -379,7 +385,6 @@ async function submitRun() {
       mode: mode.value,
       playedUtc: new Date().toISOString(),
     })
-
     submitResult.value = { allTimeRank: res.allTimeRank ?? res.rank ?? 0 }
   } catch (e: any) {
     submitError.value = e?.data || e?.message || "Failed to submit run."
@@ -390,12 +395,11 @@ async function submitRun() {
 
 function playAgain() {
   endDialog.value = false
-  submitResult.value = null
   submitError.value = null
+  submitResult.value = null
   restartWithSameSeed()
 }
 
-// boot sync with query params
 watch(
   () => route.query,
   async (q) => {
@@ -415,13 +419,10 @@ watch(
   },
   { immediate: true }
 )
-
-const progressText = computed(() => `${score.value} / ${targetScore}`)
 </script>
 
 <template>
   <v-container class="pl-play" fluid>
-    <!-- Top controls -->
     <v-row class="mb-3" align="center" justify="space-between">
       <v-col cols="12" md="7" class="d-flex flex-wrap align-center ga-2">
         <v-btn :variant="mode === 'daily' ? 'flat' : 'tonal'" color="primary" size="small" @click="selectDaily" :disabled="loadingSeed">
@@ -449,9 +450,7 @@ const progressText = computed(() => `${score.value} / ${targetScore}`)
           Play Seed
         </v-btn>
 
-        <v-chip v-if="seed" class="ml-1" size="small" label>
-          Seed: {{ seed }}
-        </v-chip>
+        <v-chip v-if="seed" class="ml-1" size="small" label>Seed: {{ seed }}</v-chip>
 
         <v-chip v-if="mode === 'daily' && dailyDate" class="ml-1" size="small" label>
           Daily: {{ dailyDate }} (UTC)
@@ -473,9 +472,7 @@ const progressText = computed(() => `${score.value} / ${targetScore}`)
       </v-col>
     </v-row>
 
-    <v-alert v-if="seedError" type="error" variant="tonal" class="mb-3">
-      {{ seedError }}
-    </v-alert>
+    <v-alert v-if="seedError" type="error" variant="tonal" class="mb-3">{{ seedError }}</v-alert>
 
     <v-card class="pl-card" rounded="xl" elevation="8">
       <v-card-title class="d-flex align-center justify-space-between">
@@ -484,7 +481,7 @@ const progressText = computed(() => `${score.value} / ${targetScore}`)
           <v-progress-circular v-if="loadingSeed" indeterminate size="18" width="2" />
         </div>
         <v-chip size="small" variant="tonal" color="secondary">
-          Turn {{ turn }} / {{ turnsMax }}
+          Turn {{ displayTurn }} / {{ turnsMax }}
         </v-chip>
       </v-card-title>
 
@@ -496,7 +493,6 @@ const progressText = computed(() => `${score.value} / ${targetScore}`)
         </div>
 
         <template v-else>
-          <!-- HUD -->
           <v-row class="mb-3" dense>
             <v-col cols="12" md="4">
               <v-card variant="tonal" rounded="lg" class="pa-3">
@@ -533,7 +529,6 @@ const progressText = computed(() => `${score.value} / ${targetScore}`)
             </v-col>
           </v-row>
 
-          <!-- Inventory -->
           <v-card variant="tonal" rounded="lg" class="pa-3 mb-3">
             <div class="text-subtitle-2 mb-2">Inventory</div>
             <div class="d-flex flex-wrap ga-2">
@@ -543,16 +538,17 @@ const progressText = computed(() => `${score.value} / ${targetScore}`)
               <v-chip color="secondary" variant="tonal">Crystal: <b class="ml-1">{{ inventory.crystal }}</b></v-chip>
               <v-chip :color="fizzles >= 1 ? 'warning' : 'info'" variant="tonal">Fizzles: <b class="ml-1">{{ fizzles }} / {{ fizzleLimit }}</b></v-chip>
             </div>
+            <div v-if="!anyBrewableOrder && !finished" class="text-caption mt-2 opacity-80">
+              No brewable orders right now — try <b>Restock</b>.
+            </div>
           </v-card>
 
-          <!-- Actions -->
           <div class="d-flex flex-wrap ga-2 mb-4">
             <v-btn variant="tonal" @click="stir" :disabled="finished">Stir (-3 heat)</v-btn>
             <v-btn variant="tonal" @click="restock" :disabled="finished">Restock (+1 each, +curse)</v-btn>
             <v-btn color="primary" @click="nextTurn" :disabled="finished">Next Turn</v-btn>
           </div>
 
-          <!-- Orders -->
           <div class="text-subtitle-2 mb-2">Orders</div>
           <v-row dense>
             <v-col cols="12" md="6" v-for="o in orders" :key="o.id">
@@ -591,23 +587,19 @@ const progressText = computed(() => `${score.value} / ${targetScore}`)
             </v-col>
           </v-row>
 
-          <!-- Optional inline end state -->
           <v-alert v-if="finished" :type="outcome === 'win' ? 'success' : 'error'" variant="tonal" class="mt-4">
             <div class="d-flex flex-column ga-1">
               <div class="text-subtitle-1">
                 {{ outcome === "win" ? "Victory!" : "Fizzle…" }}
               </div>
               <div class="text-body-2">{{ endReason }}</div>
-              <div class="text-body-2">
-                Final score: <b>{{ score }}</b>
-              </div>
+              <div class="text-body-2">Final score: <b>{{ score }}</b></div>
             </div>
           </v-alert>
         </template>
       </v-card-text>
     </v-card>
 
-    <!-- End-of-run dialog -->
     <v-dialog v-model="endDialog" max-width="640">
       <v-card rounded="xl">
         <v-card-title class="text-h6">
@@ -620,16 +612,12 @@ const progressText = computed(() => `${score.value} / ${targetScore}`)
             <div class="text-body-2 opacity-80">Final score: <b>{{ score }}</b></div>
             <div class="text-body-2 opacity-80">Turns used: <b>{{ Math.min(turn, turnsMax) }}</b></div>
             <div class="text-body-2 opacity-80">Fizzles: <b>{{ fizzles }}</b></div>
+            <div class="text-body-2 mt-1">{{ endReason }}</div>
           </div>
-
-          <v-alert v-if="endReason" type="info" variant="tonal" class="mb-3">
-            {{ endReason }}
-          </v-alert>
 
           <v-divider class="my-3" />
 
           <div class="text-subtitle-2 mb-2">Submit your score</div>
-
           <v-row>
             <v-col cols="12" md="7">
               <v-text-field
@@ -641,7 +629,6 @@ const progressText = computed(() => `${score.value} / ${targetScore}`)
                 :disabled="submittingScore"
               />
             </v-col>
-
             <v-col cols="12" md="5" class="d-flex align-end">
               <v-btn
                 color="primary"

@@ -5,7 +5,7 @@ export type PotionType = "stable" | "volatile" | "precision"
 
 export type SeededOrder = {
   id: string
-  title: string // ✅ TEST EXPECTS THIS
+  title: string
   type: PotionType
   reward: number
   deadlineTurn: number
@@ -19,12 +19,8 @@ export type SeededSetup = {
   ordersSeed: SeededOrder[]
 }
 
-/**
- * Keep this as a normal readonly array (NOT tuple typing).
- * We enforce non-empty with a runtime guard to avoid TS squiggles.
- */
 const ORDER_POOL: readonly {
-  title: string // ✅ always present
+  title: string
   type: PotionType
   baseReward: number
   heat: number
@@ -42,31 +38,62 @@ function pick<T>(rng: () => number, arr: readonly T[]): T {
   return arr[Math.floor(rng() * arr.length)] as T
 }
 
+/**
+ * Balance guard:
+ * If starting crystal is low, don't over-generate crystal-heavy orders.
+ */
+function maybeSoftenCrystal(req: Record<IngredientKey, number>, invCrystal: number, rng: () => number) {
+  // If you only start with 2 crystal, occasionally reduce a crystal requirement of 1 -> 0.
+  if (invCrystal <= 2 && req.crystal >= 1) {
+    const roll = rng() // 0..1
+    if (roll < 0.35) {
+      return { ...req, crystal: Math.max(0, req.crystal - 1) }
+    }
+  }
+  return req
+}
+
 export function createSetupFromSeed(seed: number): SeededSetup {
   const rng = mulberry32(seed)
 
+  // Slightly more generous start; still losable
   const invStart: Record<IngredientKey, number> = {
-    herb: randInt(rng, 4, 6),
-    essence: randInt(rng, 3, 5),
-    ember: randInt(rng, 3, 5),
-    crystal: randInt(rng, 1, 3),
+    herb: randInt(rng, 4, 7),
+    essence: randInt(rng, 3, 6),
+    ember: randInt(rng, 3, 6),
+    crystal: randInt(rng, 2, 4), // ✅ key change
   }
 
-  const ordersSeed: SeededOrder[] = Array.from({ length: 5 }).map((_, i) => {
+  // 6 orders so you have more choices
+  const ordersSeed: SeededOrder[] = Array.from({ length: 6 }).map((_, i) => {
     const base = pick(rng, ORDER_POOL)
 
-    const reward = base.baseReward + randInt(rng, -6, 10)
-    const deadlineTurn = randInt(rng, 3, 6)
+    const reward = base.baseReward + randInt(rng, -6, 12)
+
+    // Deadlines: keep pressure, but not always impossible
+    const deadlineTurn = randInt(rng, 3, 7)
+
     const heatOnBrew = Math.max(1, base.heat + randInt(rng, -1, 1))
 
+    // Slightly vary requirements but avoid spikes
+    const req = { ...base.req }
+    // small chance to +1 on a non-crystal ingredient
+    const bumpRoll = rng()
+    if (bumpRoll < 0.25) {
+      const bump: IngredientKey = pick(rng, ["herb", "essence", "ember"] as const)
+      req[bump] = Math.min(4, req[bump] + 1)
+    }
+
+    const finalReq = maybeSoftenCrystal(req, invStart.crystal, rng)
+
     return {
-      id: `ord-${seed}-${i}`,       // deterministic
-      title: base.title,           // ✅ never undefined
+      id: `ord-${seed}-${i}`,
+      title: base.title,
       type: base.type,
       reward,
       deadlineTurn,
       heatOnBrew,
-      req: { ...base.req },
+      req: finalReq,
     }
   })
 
