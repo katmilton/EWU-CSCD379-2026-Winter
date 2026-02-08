@@ -1,0 +1,32 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Potion.Ledger", "Potion.Ledger", "{AE12E424-B075-7A20-F49E-BC8E9C2350CE}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "api", "api", "{30D66340-D5AF-00F5-4682-9153320EF2D8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PotionLedger.Api", "Potion.Ledger\api\PotionLedger.Api\PotionLedger.Api.csproj", "{62EABE6A-EB66-140E-0421-1237BF50B70D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{62EABE6A-EB66-140E-0421-1237BF50B70D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{62EABE6A-EB66-140E-0421-1237BF50B70D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{62EABE6A-EB66-140E-0421-1237BF50B70D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{62EABE6A-EB66-140E-0421-1237BF50B70D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{30D66340-D5AF-00F5-4682-9153320EF2D8} = {AE12E424-B075-7A20-F49E-BC8E9C2350CE}
+		{62EABE6A-EB66-140E-0421-1237BF50B70D} = {30D66340-D5AF-00F5-4682-9153320EF2D8}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F43D2D8D-59D2-4BC3-8159-F1BFD69D9F18}
+	EndGlobalSection
+EndGlobal
