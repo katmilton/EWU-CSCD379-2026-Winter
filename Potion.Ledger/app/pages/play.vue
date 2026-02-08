@@ -199,6 +199,9 @@ const submittingScore = ref(false)
 const submitError = ref<string | null>(null)
 const submitResult = ref<{ allTimeRank: number } | null>(null)
 
+// ✅ HELP MODAL
+const rulesOpen = ref(false)
+
 function startGameFromSeed(s: number) {
   const norm = normalizeSeed(s)
   if (!norm) {
@@ -292,7 +295,6 @@ function checkEnd() {
 function nextTurn() {
   if (finished.value) return
 
-  // ✅ do not allow UI to go past max
   if (turn.value >= turnsMax) {
     turn.value = turnsMax + 1
     checkEnd()
@@ -307,7 +309,6 @@ function nextTurn() {
 
   log.value.unshift(`Turn ${turn.value} begins...`)
 
-  // If you're stuck (no brewable orders) and curse is about to end you anyway, finish quickly.
   if (!anyBrewableOrder.value && curse.value >= curseMax) {
     return endRun("loss", "No brewable orders left. The curse consumed your ledger.")
   }
@@ -393,10 +394,21 @@ async function submitRun() {
   }
 }
 
-function playAgain() {
+async function playAgain() {
   endDialog.value = false
   submitError.value = null
   submitResult.value = null
+
+  // ✅ If you WIN the DAILY, default to RANDOM next
+  if (outcome.value === "win" && mode.value === "daily") {
+    mode.value = "random"
+    seed.value = null
+    dailyDate.value = null
+    await setUrlQuery({ mode: "random", seed: null })
+    await ensureSeedFromMode()
+    return
+  }
+
   restartWithSameSeed()
 }
 
@@ -480,9 +492,24 @@ watch(
           <span class="text-h6">Potion Ledger</span>
           <v-progress-circular v-if="loadingSeed" indeterminate size="18" width="2" />
         </div>
-        <v-chip size="small" variant="tonal" color="secondary">
-          Turn {{ displayTurn }} / {{ turnsMax }}
-        </v-chip>
+
+        <div class="d-flex align-center ga-2">
+          <v-chip size="small" variant="tonal" color="secondary">
+            Turn {{ Math.min(turn, turnsMax) }} / {{ turnsMax }}
+          </v-chip>
+
+          <v-tooltip text="How to play">
+            <template #activator="{ props }">
+              <v-btn
+                v-bind="props"
+                icon="mdi-help-circle-outline"
+                variant="text"
+                size="small"
+                @click="rulesOpen = true"
+              />
+            </template>
+          </v-tooltip>
+        </div>
       </v-card-title>
 
       <v-divider />
@@ -600,6 +627,47 @@ watch(
       </v-card-text>
     </v-card>
 
+    <!-- Rules modal -->
+    <v-dialog v-model="rulesOpen" max-width="820">
+      <v-card rounded="xl">
+        <v-card-title class="text-h6 d-flex align-center justify-space-between">
+          <span>How to play</span>
+          <v-btn icon="mdi-close" variant="text" @click="rulesOpen = false" />
+        </v-card-title>
+
+        <v-divider />
+
+        <v-card-text>
+          <div class="text-subtitle-1 mb-2">Quick rules</div>
+          <ul class="pl-rules">
+            <li>You have <b>{{ turnsMax }}</b> turns to reach <b>{{ targetScore }}</b> score.</li>
+            <li>Each order costs ingredients. If you can’t afford it, you can’t brew it.</li>
+            <li>Brewing increases <b>Heat</b>. Too much Heat raises the chance of a <b>Fizzle</b>.</li>
+            <li>If you fizzle <b>{{ fizzleLimit }}</b> times, you lose.</li>
+            <li><b>Stir</b> reduces Heat.</li>
+            <li><b>Restock</b> gives +1 of each ingredient, but increases the <b>Curse</b>.</li>
+            <li>The <b>Curse</b> grows over time and makes brews riskier. Max curse ends the run.</li>
+            <li>Brewing after the deadline reduces your payout.</li>
+          </ul>
+
+          <div class="text-subtitle-1 mt-4 mb-2">Detailed breakdown</div>
+          <div class="text-body-2 opacity-90">
+            <p><b>Goal:</b> Score <b>{{ targetScore }}</b> points within <b>{{ turnsMax }}</b> turns.</p>
+            <p><b>Orders:</b> Each order has a type, requirements, a reward, a deadline, and heat gained.</p>
+            <p><b>Deadlines:</b> Brewing late reduces the reward (minimum 40%).</p>
+            <p><b>Heat & fizzles:</b> Heat rises when brewing; higher heat increases fizzle risk. Stir reduces heat.</p>
+            <p><b>Curse:</b> Curse rises over time and when you restock or fizzle. Max curse ends the run.</p>
+          </div>
+        </v-card-text>
+
+        <v-card-actions class="pa-4">
+          <v-spacer />
+          <v-btn variant="tonal" @click="rulesOpen = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- End-of-run / submit dialog -->
     <v-dialog v-model="endDialog" max-width="640">
       <v-card rounded="xl">
         <v-card-title class="text-h6">
@@ -630,13 +698,7 @@ watch(
               />
             </v-col>
             <v-col cols="12" md="5" class="d-flex align-end">
-              <v-btn
-                color="primary"
-                block
-                :loading="submittingScore"
-                :disabled="!canSubmit"
-                @click="submitRun"
-              >
+              <v-btn color="primary" block :loading="submittingScore" :disabled="!canSubmit" @click="submitRun">
                 Submit
               </v-btn>
             </v-col>
@@ -667,5 +729,12 @@ watch(
 }
 .pl-card {
   overflow: hidden;
+}
+.pl-rules {
+  margin: 0;
+  padding-left: 18px;
+}
+.pl-rules li {
+  margin: 6px 0;
 }
 </style>
