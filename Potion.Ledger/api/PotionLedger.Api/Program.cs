@@ -9,75 +9,69 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// ----------------------------
+// --------------------
 // Connection string resolution
-// ----------------------------
-//
-// Priority order:
-// 1) ConnectionStrings:PotionLedgerDb  (Azure "Connection strings" tab, name = PotionLedgerDb)
-// 2) PotionLedgerDb                   (Azure "App settings" tab, name = PotionLedgerDb)
-// 3) Local fallback (LocalDB) for dev machines
-//
-var env = builder.Environment.EnvironmentName;
-var isTesting = builder.Environment.IsEnvironment("Testing");
-var isCi = string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase);
-
-var conn =
+// --------------------
+// Azure App Service "Connection strings" become env vars like:
+//   ConnectionStrings__PotionLedgerDb
+// so GetConnectionString("PotionLedgerDb") is the most reliable.
+// We also accept a couple legacy names to avoid “hunt down bits”.
+string? conn =
     builder.Configuration.GetConnectionString("PotionLedgerDb")
-    ?? builder.Configuration["PotionLedgerDb"];
+    ?? builder.Configuration.GetConnectionString("PotionLedgerDB")
+    ?? builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? builder.Configuration["ConnectionStrings:PotionLedgerDb"]
+    ?? builder.Configuration["ConnectionStrings__PotionLedgerDb"]
+    ?? builder.Configuration["PotionLedgerDb"]
+    ?? builder.Configuration["PotionLedgerDB"]
+    ?? builder.Configuration["DefaultConnection"];
 
-// If you didn't provide a conn string:
-// - In CI/Testing: use InMemory so tests don't fail.
-// - Otherwise: fall back to LocalDB for local dev.
-var useInMemory = false;
-
-if (string.IsNullOrWhiteSpace(conn))
+// --------------------
+// EF Core
+// --------------------
+// If we have a connection string, use SQL Server.
+// Otherwise, fall back to InMemory so CI/tests can boot the app.
+if (!string.IsNullOrWhiteSpace(conn))
 {
-    if (isTesting || isCi)
+    builder.Services.AddDbContext<PotionLedgerDbContext>(options =>
     {
-        useInMemory = true;
-    }
-    else
-    {
-        conn = @"Server=(localdb)\MSSQLLocalDB;Database=PotionLedgerDb;Trusted_Connection=True;TrustServerCertificate=True;";
-    }
-}
-
-builder.Services.AddDbContext<PotionLedgerDbContext>(options =>
-{
-    if (useInMemory)
-    {
-        options.UseInMemoryDatabase("PotionLedgerDb_Test");
-    }
-    else
-    {
-        options.UseSqlServer(conn!, sql => sql.EnableRetryOnFailure(
+        options.UseSqlServer(conn, sql => sql.EnableRetryOnFailure(
             maxRetryCount: 8,
             maxRetryDelay: TimeSpan.FromSeconds(10),
             errorNumbersToAdd: null
         ));
-    }
-});
+    });
+}
+else
+{
+    // CI/integration tests fallback. (You already have EFCore.InMemory installed.)
+    builder.Services.AddDbContext<PotionLedgerDbContext>(options =>
+    {
+        options.UseInMemoryDatabase("PotionLedgerDb_InMemory");
+    });
+}
 
-// Service layer (rubric)
+// --------------------
+// Services (rubric)
+// --------------------
 builder.Services.AddScoped<IRunService, RunService>();
 builder.Services.AddScoped<ITestimonialService, TestimonialService>();
 builder.Services.AddScoped<SeedService>();
 
-// ----------------------------
-// CORS
-// ----------------------------
+// --------------------
+// CORS (rubric)
+// --------------------
 var origins = (builder.Configuration["CORS_ORIGINS"] ?? "")
     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-// Keep sensible local defaults if none provided.
-// (You already said you've verified CORS_ORIGINS, so this is just a safety net.)
+// If not set, allow common local dev + your static app default.
 if (origins.Length == 0)
 {
     origins = new[]
     {
         "http://localhost:3000",
         "http://localhost:5173",
+        "https://blue-grass-03934d610.6.azurestaticapps.net",
     };
 }
 
@@ -88,31 +82,39 @@ builder.Services.AddCors(options =>
         p.WithOrigins(origins)
          .AllowAnyHeader()
          .AllowAnyMethod();
-        // Don't add AllowCredentials unless you truly need cookies/auth.
-        // If you DO add AllowCredentials, you cannot use "*" for origins.
+        // NOTE: do NOT call AllowCredentials() unless you truly need cookies/auth.
     });
 });
 
 var app = builder.Build();
 
-// Swagger in dev (optional, but nice)
+// --------------------
+// Middleware pipeline
+// --------------------
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// CORS must run before controllers
+app.UseHttpsRedirection();
+
+app.UseRouting();
+
+// Put CORS after routing and before endpoints
 app.UseCors("GameCors");
 
-// Optional migrations:
-// - Always run in Development (when using SQL Server)
-// - Or when RUN_MIGRATIONS=true
-// Never run migrations for InMemory.
+app.UseAuthorization();
+
+// --------------------
+// Migrations (optional)
+// --------------------
+// Only run migrations when:
+// - Development, OR
+// - RUN_MIGRATIONS=true
 var runMigrations =
-    !useInMemory &&
-    (app.Environment.IsDevelopment()
-     || string.Equals(builder.Configuration["RUN_MIGRATIONS"], "true", StringComparison.OrdinalIgnoreCase));
+    app.Environment.IsDevelopment() ||
+    string.Equals(builder.Configuration["RUN_MIGRATIONS"], "true", StringComparison.OrdinalIgnoreCase);
 
 if (runMigrations)
 {
@@ -120,20 +122,25 @@ if (runMigrations)
     {
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PotionLedgerDbContext>();
-        await db.Database.MigrateAsync();
+
+        // Only attempt SQL migrations if we're actually using SQL Server.
+        // InMemory provider doesn't support Migrate().
+        if (db.Database.ProviderName?.Contains("SqlServer", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            db.Database.Migrate();
+        }
     }
     catch (Exception ex)
     {
-        app.Logger.LogWarning(ex, "Skipping DB migration (DB not available).");
+        app.Logger.LogWarning(ex, "Skipping DB migration (DB not available or not SQL Server).");
     }
 }
 
-// Health check (quick sanity test in Azure)
+// Health endpoint that never touches DB
 app.MapGet("/api/health", () => Results.Ok(new
 {
     ok = true,
-    env = app.Environment.EnvironmentName,
-    db = useInMemory ? "InMemory" : "SqlServer"
+    utc = DateTime.UtcNow
 }));
 
 app.MapControllers();
