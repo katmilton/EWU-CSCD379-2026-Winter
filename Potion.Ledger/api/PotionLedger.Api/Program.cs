@@ -17,11 +17,23 @@ var conn = builder.Configuration.GetConnectionString("PotionLedgerDb")
 if (string.IsNullOrWhiteSpace(conn))
     throw new InvalidOperationException("Missing connection string 'PotionLedgerDb'.");
 
-builder.Services.AddDbContext<PotionLedgerDbContext>(opt => opt.UseSqlServer(conn));
+builder.Services.AddDbContext<PotionLedgerDbContext>(options =>
+{
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sql => sql.EnableRetryOnFailure(
+            maxRetryCount: 8,
+            maxRetryDelay: TimeSpan.FromSeconds(10),
+            errorNumbersToAdd: null
+        )
+    );
+});
 
 // Service layer (rubric)
 builder.Services.AddScoped<IRunService, RunService>();
 builder.Services.AddScoped<ITestimonialService, TestimonialService>();
+builder.Services.AddScoped<SeedService>();
+
 
 // CORS (rubric)
 var origins = (builder.Configuration["CORS_ORIGINS"] ?? "")

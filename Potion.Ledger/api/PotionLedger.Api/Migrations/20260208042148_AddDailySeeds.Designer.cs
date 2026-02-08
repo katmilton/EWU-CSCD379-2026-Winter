@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PotionLedger.Api.Data;
 
@@ -11,9 +12,11 @@ using PotionLedger.Api.Data;
 namespace PotionLedger.Api.Migrations
 {
     [DbContext(typeof(PotionLedgerDbContext))]
-    partial class PotionLedgerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260208042148_AddDailySeeds")]
+    partial class AddDailySeeds
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

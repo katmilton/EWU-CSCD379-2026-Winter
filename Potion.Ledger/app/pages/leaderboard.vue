@@ -39,7 +39,7 @@ function fmtUtc(iso: string) {
           Top Alchemists
         </h1>
         <p class="pl-sub">
-          Top 10 runs (all time) • Powered by your API
+          Top 10 runs (all time) 
           <span class="pl-muted">({{ api.baseURL }})</span>
         </p>
       </div>

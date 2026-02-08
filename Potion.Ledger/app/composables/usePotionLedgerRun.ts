@@ -1,92 +1,78 @@
-type LeaderboardEntry = {
-  id: number
-  playerName: string
-  score: number
-  turnsUsed: number
-  fizzles: number
-  createdUtc: string
-}
-
-export type LeaderboardResponse = {
-  generatedUtc: string
-  entries: LeaderboardEntry[]
-}
-
-export type RunCreateRequest = {
-  playerName: string
-  score: number
-  turnsUsed: number
-  fizzles: number
-}
-
-export type RunCreateResponse = {
-  id: number
-  playerName: string
-  score: number
-  turnsUsed: number
-  fizzles: number
-  createdUtc: string
-  rankAllTime: number
-}
-
-export type TestimonialsResponse = {
-  generatedUtc: string
-  testimonials: TestimonialDto[]
-}
+// app/composables/usePotionLedgerRun.ts
+export type TestimonialCreateRequest = {
+  name: string;
+  rating: number; // 1-5
+  message: string;
+};
 
 export type TestimonialDto = {
-  id: number
-  name: string
-  rating: number
-  message: string
-  createdUtc: string
-}
+  id: number | string;
+  name: string;
+  rating: number;
+  message: string;
+  createdUtc: string;
+};
 
-export type TestimonialCreateRequest = {
-  name: string
-  rating: number
-  message: string
-}
+export type TestimonialsResponse = {
+  generatedUtc: string;
+  testimonials: TestimonialDto[];
+};
 
-export function normalizeBaseUrl(url: string) {
-  return url.replace(/\/$/, '')
-}
+// If you already have these types in this file, do NOT duplicate—merge them.
 
 export function usePotionLedgerApi() {
-  const config = useRuntimeConfig()
-  const baseURL = normalizeBaseUrl(String(config.public.apiBase || ''))
+  const config = useRuntimeConfig();
+  const base = String(config.public.apiBase || "").replace(/\/$/, "");
 
-  const apiFetch = $fetch.create({
-    baseURL,
-    retry: 0,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  })
+  // --------------------
+  // Testimonials
+  // --------------------
+  async function getTestimonials(): Promise<TestimonialsResponse> {
+    return await $fetch<TestimonialsResponse>(`${base}/api/testimonials`);
+  }
+
+  async function postTestimonial(
+    payload: TestimonialCreateRequest
+  ): Promise<TestimonialDto> {
+    return await $fetch<TestimonialDto>(`${base}/api/testimonials`, {
+      method: "POST",
+      body: payload,
+    });
+  }
+
+  // --------------------
+  // Seeds (for /play)
+  // --------------------
+  async function getDailySeed(): Promise<{ date: string; seed: number }> {
+    return await $fetch(`${base}/api/seeds/daily`);
+  }
+
+  async function getRandomSeed(): Promise<{ seed: number }> {
+    return await $fetch(`${base}/api/seeds/random`);
+  }
+
+  // --------------------
+  // Runs / Leaderboard (example)
+  // --------------------
+  async function postRun(payload: any) {
+    return await $fetch(`${base}/api/runs`, { method: "POST", body: payload });
+  }
+
+  async function getLeaderboardAllTime() {
+    return await $fetch(`${base}/api/leaderboard/alltime`);
+  }
 
   return {
-    baseURL,
+    // testimonials
+    getTestimonials,
+    postTestimonial,
 
-    async getLeaderboardAllTime() {
-      return await apiFetch<LeaderboardResponse>('/api/leaderboard/alltime')
-    },
+    // seeds
+    getDailySeed,
+    getRandomSeed,
 
-    async postRun(req: RunCreateRequest) {
-      return await apiFetch<RunCreateResponse>('/api/runs', {
-        method: 'POST',
-        body: req,
-      })
-    },
-
-    async getTestimonials() {
-      return await apiFetch<TestimonialsResponse>('/api/testimonials')
-    },
-
-    async postTestimonial(req: TestimonialCreateRequest) {
-      return await apiFetch<TestimonialDto>('/api/testimonials', {
-        method: 'POST',
-        body: req,
-      })
-    },
-  }
+    // runs/leaderboard (keep or remove based on what you already have)
+    postRun,
+    getLeaderboardAllTime,
+  };
 }

@@ -48,7 +48,7 @@ const quick = [
         </div>
 
         <div class="pl-muted mt-3" style="font-size:.92rem">
-          API base: <b>{{ api.baseURL }}</b>
+        
         </div>
       </div>
 

@@ -5,8 +5,12 @@ namespace PotionLedger.Api.Data;
 
 public class PotionLedgerDbContext : DbContext
 {
+    
     public PotionLedgerDbContext(DbContextOptions<PotionLedgerDbContext> options) : base(options) { }
 
     public DbSet<Run> Runs => Set<Run>();
     public DbSet<Testimonial> Testimonials => Set<Testimonial>();
+
+    public DbSet<DailySeed> DailySeeds => Set<DailySeed>();
+
 }

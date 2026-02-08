@@ -98,7 +98,7 @@ function clearNotices() {
       <div>
         <h1 class="pl-title">Testimonials</h1>
         <p class="pl-sub">
-          Real witches. Real feedback. Stored in Azure SQL via your API.
+          Real witches. Real feedback.
         </p>
       </div>
 
