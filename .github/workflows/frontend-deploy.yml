@@ -27,7 +27,7 @@ jobs:
 
       - name: Test
         working-directory: Potion.Ledger
-        run: npm test
+        run: npm run test:run
 
       - name: Generate static site
         working-directory: Potion.Ledger

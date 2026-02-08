@@ -20,7 +20,7 @@ if (string.IsNullOrWhiteSpace(conn))
 builder.Services.AddDbContext<PotionLedgerDbContext>(options =>
 {
     options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
+        conn,
         sql => sql.EnableRetryOnFailure(
             maxRetryCount: 8,
             maxRetryDelay: TimeSpan.FromSeconds(10),
@@ -28,6 +28,7 @@ builder.Services.AddDbContext<PotionLedgerDbContext>(options =>
         )
     );
 });
+
 
 // Service layer (rubric)
 builder.Services.AddScoped<IRunService, RunService>();
