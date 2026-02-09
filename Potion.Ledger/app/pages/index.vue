@@ -32,7 +32,6 @@ const quick = [
         <h1 class="pl-heroTitle">Brew fast. Think ahead. Don’t get cursed.</h1>
         <p class="pl-heroSub">
           Potion Ledger is a tiny tactical game about deadlines, scarcity, and heat control.
-          Your scores and testimonials are saved via your .NET API.
         </p>
 
         <div class="pl-actions">
