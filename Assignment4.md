@@ -18,7 +18,7 @@ The purpose of this assignment is to solidify your learning of:
 - Security
   - At least one page that shows database data to any user who comes to the site. ❌✅
   - At least one page that requires login, but may or may not have a special role. ❌✅
-  - min pages that are restricted to a specific admin role. ❌✅
+  - Admin pages that are restricted to a specific admin role. ❌✅
 - Code Quality
   - Vue components used ❌✅
   - Services used ❌✅
